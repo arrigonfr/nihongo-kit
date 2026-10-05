@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#171a17">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='12' fill='%23356653'/%3E%3Ctext x='20' y='28' text-anchor='middle' font-size='25' fill='white'%3E%E8%A8%80%3C/text%3E%3C/svg%3E">
+  <title>Kotoba — Japanese dictionary</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --page: #f6f5f1; --surface: #fff; --soft: #f1f0eb; --ink: #23251f;
+      --muted: #777970; --line: #e7e6df; --accent: #356653; --accent-strong: #254d3e;
+      --accent-soft: #e5eee8; --danger: #a34336; --shadow: 0 16px 45px rgb(42 45 35 / 7%);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    :root[data-theme="dark"] {
+      color-scheme: dark; --page: #171a17; --surface: #202520; --soft: #292e29;
+      --ink: #e9eee7; --muted: #a1a99f; --line: #363d36; --accent: #9ac8a9;
+      --accent-strong: #c1e1c9; --accent-soft: #2d3d32; --danger: #efa094;
+      --shadow: 0 16px 45px rgb(0 0 0 / 18%);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: var(--page); color: var(--ink); transition: background .2s,color .2s; }
+    button,textarea { font: inherit; } button { color: inherit; }
+    .shell { width: min(100% - 40px,1060px); margin: auto; }
+    header { height: 76px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); }
+    .brand { display: flex; align-items: center; gap: 11px; color: var(--ink); text-decoration: none; }
+    .brand-mark { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 11px; color: #fff; background: var(--accent); font: 22px Georgia,serif; }
+    .brand-name { font-size: 19px; font-weight: 750; letter-spacing: -.04em; }
+    .brand-sub { margin-left: 8px; color: var(--muted); font-size: 12px; font-weight: 500; letter-spacing: 0; }
+    .icon-button,.small-button { border: 1px solid var(--line); background: var(--surface); cursor: pointer; transition: .15s ease; }
+    .icon-button { width: 39px; height: 39px; display: grid; place-items: center; border-radius: 10px; color: var(--muted); }
+    .icon-button svg { width: 18px; height: 18px; }
+    .icon-button:hover,.small-button:hover { border-color: var(--accent); color: var(--accent-strong); }
+    main { padding: 46px 0 60px; }
+    .intro { text-align: center; margin: 0 auto 28px; }
+    .eyebrow { margin: 0 0 13px; color: var(--accent); font-size: 11px; font-weight: 800; letter-spacing: .17em; text-transform: uppercase; }
+    h1 { margin: 0; font: 500 clamp(36px,6vw,54px)/1.08 Georgia,"Times New Roman",serif; letter-spacing: -.055em; }
+    .intro p { max-width: 530px; margin: 13px auto 0; color: var(--muted); font-size: 15px; line-height: 1.6; }
+    .search-wrap { max-width: 760px; margin: auto; }
+    .search-panel { padding: 15px; border: 1px solid var(--line); border-radius: 17px; background: var(--surface); box-shadow: var(--shadow); }
+    .search-panel:focus-within { border-color: color-mix(in srgb,var(--accent) 55%,var(--line)); }
+    .search-top { display: flex; align-items: flex-start; gap: 12px; }
+    .search-symbol { padding: 10px 0 0 4px; color: var(--accent); }
+    .search-symbol svg { width: 21px; height: 21px; }
+    textarea { display: block; width: 100%; min-height: 70px; max-height: 240px; resize: vertical; padding: 5px 2px; border: 0; outline: 0; background: transparent; color: var(--ink); font: 21px/1.5 "Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif; }
+    textarea::placeholder { color: #a7aaa1; }
+    .search-bottom { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0 0 38px; border-top: 1px solid var(--line); }
+    .options,.toolbar-actions { display: flex; align-items: center; gap: 11px; }
+    .mode-toggle { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; cursor: pointer; user-select: none; }
+    .mode-toggle input { width: 15px; height: 15px; margin: 0; accent-color: var(--accent); }
+    .hint { color: var(--muted); font-size: 11px; }
+    .search-button { padding: 9px 15px; border: 0; border-radius: 9px; background: var(--accent); color: #fff; cursor: pointer; font-size: 13px; font-weight: 700; }
+    .search-button:hover { background: var(--accent-strong); }
+    :root[data-theme="dark"] .search-button { color: #17231b; }
+    .search-button:disabled { opacity: .55; cursor: wait; }
+    .toolbar { max-width: 760px; min-height: 32px; margin: 24px auto 0; display: flex; justify-content: space-between; align-items: center; }
+    .result-label { color: var(--muted); font-size: 13px; }
+    .toolbar-actions { gap: 8px; }
+    .small-button { display: inline-flex; align-items: center; gap: 7px; padding: 7px 10px; border-radius: 8px; color: var(--muted); font-size: 12px; }
+    .small-button svg { width: 14px; height: 14px; }
+    .small-button:disabled { opacity: .45; cursor: not-allowed; }
+    .content-grid { display: grid; grid-template-columns: minmax(0,1fr) 225px; gap: 22px; align-items: start; margin-top: 13px; }
+    #results { min-width: 0; }
+    .result-card,.kanji-card,.empty-state,.history-panel { border: 1px solid var(--line); border-radius: 13px; background: var(--surface); }
+    .result-card { margin-bottom: 12px; padding: 21px 23px; animation: appear .25s ease both; }
+    @keyframes appear { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    .entry-head { display: flex; justify-content: space-between; gap: 15px; align-items: flex-start; }
+    .word-button { display: inline; padding: 0; border: 0; background: transparent; color: var(--ink); cursor: pointer; text-align: left; font: 650 29px/1.3 "Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif; }
+    .word-button:hover { color: var(--accent); }
+    .reading { margin-top: 3px; color: var(--muted); font-size: 14px; }
+    .common-badge { padding: 5px 8px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); font-size: 10px; font-weight: 750; letter-spacing: .06em; white-space: nowrap; }
+    .tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 15px 0 12px; }
+    .tag { padding: 6px 8px; border: 1px solid var(--line); border-radius: 5px; color: var(--muted); font-size: 10px; line-height: 1; }
+    .tag.jlpt { border-color: transparent; background: var(--accent-soft); color: var(--accent-strong); font-weight: 700; }
+    .meanings { margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.75; }
+    .meanings li { padding-left: 2px; } .meanings li::marker { color: var(--accent); }
+    .examples,.kanji-section { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+    .section-label { margin: 0 0 9px; color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+    .example { padding: 8px 0; } .example+.example { border-top: 1px dashed var(--line); }
+    .example-ja { font: 14px/1.6 "Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif; }
+    .example-en { margin-top: 2px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .example-credit,.example-empty { margin-top: 4px; color: var(--muted); font-size: 10px; }
+    .example-credit a { color: inherit; }
+    .audio-button { flex: 0 0 auto; width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); color: var(--accent); cursor: pointer; }
+    .audio-button svg { width: 15px; height: 15px; }
+    .kanji-card { margin-bottom: 12px; padding: 24px; }
+    .kanji-title { display: flex; align-items: center; gap: 18px; }
+    .kanji-glyph { font: 64px/1.1 "Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif; }
+    .kanji-meta { color: var(--muted); font-size: 12px; line-height: 1.8; }
+    .reading-list,.history-list { display: flex; flex-wrap: wrap; gap: 7px; }
+    .reading-chip { padding: 6px 9px; border-radius: 6px; background: var(--soft); font: 13px "Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif; }
+    .history-panel { position: sticky; top: 18px; padding: 16px 14px; }
+    .history-heading { display: flex; justify-content: space-between; align-items: center; margin: 0 0 12px; font-size: 13px; font-weight: 750; }
+    .history-heading button { padding: 2px; border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 11px; }
+    .history-list.vertical { display: flex; flex-direction: column; gap: 2px; }
+    .history-item { display: flex; justify-content: space-between; align-items: center; gap: 7px; padding: 8px 7px; border: 0; border-radius: 6px; background: transparent; cursor: pointer; text-align: left; font-size: 13px; }
+    .history-item:hover { background: var(--soft); }
+    .history-query { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .history-mode { color: var(--muted); font-size: 9px; }
+    .history-empty { color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .empty-state { padding: 34px 24px; color: var(--muted); text-align: center; }
+    .empty-symbol { margin: 0 auto 12px; color: var(--accent); opacity: .8; font: 29px Georgia,serif; }
+    .empty-state strong { display: block; margin-bottom: 5px; color: var(--ink); font-size: 15px; }
+    .empty-state p { margin: 0; font-size: 13px; line-height: 1.6; }
+    .error-state { color: var(--danger); }
+    .loading { display: flex; justify-content: center; align-items: center; gap: 10px; padding: 35px; color: var(--muted); font-size: 13px; }
+    .spinner { width: 17px; height: 17px; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    footer { padding: 0 0 26px; color: var(--muted); text-align: center; font-size: 11px; line-height: 1.7; }
+    footer a { color: inherit; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+    @media(max-width:700px) {
+      .shell { width: min(100% - 28px,560px); } header { height: 64px; }
+      .brand-sub { display: none; } main { padding: 35px 0 45px; }
+      .intro { margin-bottom: 23px; } .intro p { font-size: 14px; }
+      .search-panel { padding: 12px; border-radius: 14px; } textarea { min-height: 62px; font-size: 19px; }
+      .search-bottom { padding-left: 4px; } .hint { display: none; }
+      .content-grid { grid-template-columns: 1fr; gap: 15px; margin-top: 10px; }
+      .history-panel { position: static; grid-row: 1; padding: 13px; }
+      .history-heading { margin-bottom: 8px; }
+      .history-list.vertical { flex-direction: row; overflow-x: auto; padding-bottom: 2px; }
+      .history-item { flex: 0 0 auto; max-width: 160px; background: var(--soft); }
+      .result-card { padding: 18px; } .toolbar { margin-top: 18px; }
+    }
+    @media(max-width:380px) {
+      .toolbar-actions .small-button { padding: 7px; }
+      .toolbar-actions .button-text { display: none; }
+      .options { gap: 5px; } .search-button { padding: 9px 12px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <a class="brand" href="#" aria-label="Kotoba home"><span class="brand-mark" aria-hidden="true">言</span><span class="brand-name">kotoba<span class="brand-sub">Japanese, made clear.</span></span></a>
+      <button class="icon-button" id="themeButton" type="button" aria-label="Switch to light mode" title="Toggle dark mode">
+        <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg>
+      </button>
+    </header>
+    <main>
+      <section class="intro" aria-labelledby="pageTitle">
+        <p class="eyebrow">A little closer to fluency</p>
+        <h1 id="pageTitle">Find the words<br>behind the words.</h1>
+        <p>Look up Japanese, explore kanji, and find the meaning hiding in a sentence.</p>
+      </section>
+      <section class="search-wrap" aria-label="Dictionary search">
+        <div class="search-panel">
+          <div class="search-top">
+            <span class="search-symbol" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4.5 4.5"/></svg></span>
+            <label class="sr-only" for="query">Japanese or English word, kanji, or sentence</label>
+            <textarea id="query" rows="2" autocomplete="off" spellcheck="false" placeholder="Try 日本語, たべる, taberu, or “beautiful”"></textarea>
+          </div>
+          <div class="search-bottom">
+            <div class="options"><label class="mode-toggle"><input id="kanjiMode" type="checkbox"><span>Kanji mode</span></label><span class="hint">Enter to search · Esc to clear</span></div>
+            <button id="searchButton" class="search-button" type="button">Search</button>
+          </div>
+        </div>
+      </section>
+      <div class="toolbar">
+        <div class="result-label" id="resultLabel" aria-live="polite">Ready when you are</div>
+        <div class="toolbar-actions">
+          <button class="small-button" id="clearButton" type="button" title="Clear search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 7h16M10 11v6m4-6v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg><span class="button-text">Clear</span></button>
+          <button class="small-button" id="exportButton" type="button" disabled title="Download current results as JSON"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 17v4h14v-4"/></svg><span class="button-text">Export JSON</span></button>
+        </div>
+      </div>
+      <div class="content-grid">
+        <section id="results" aria-label="Search results" aria-live="polite" aria-busy="false">
+          <div class="empty-state"><div class="empty-symbol" aria-hidden="true">辞</div><strong>Your next discovery starts here</strong><p>Search a word, paste a sentence, or switch on Kanji mode to explore a character.</p></div>
+        </section>
+        <aside class="history-panel" aria-label="Search history">
+          <h2 class="history-heading"><span>Recent searches</span><button id="clearHistory" type="button">Clear</button></h2>
+          <div class="history-list vertical" id="historyList"></div>
+        </aside>
+      </div>
+    </main>
+    <footer>Dictionary data from <a href="https://jotoba.de" target="_blank" rel="noopener noreferrer">Jotoba</a> · Examples from <a href="https://tatoeba.org" target="_blank" rel="noopener noreferrer">Tatoeba</a> · Kanji data from <a href="https://kanjiapi.dev" target="_blank" rel="noopener noreferrer">KanjiAPI</a><br>All API requests go directly to their providers.</footer>
+  </div>
+  <script src="./jotoba.js"></script>
+  <script>
+    (() => {
+      "use strict";
+      const SENTENCES_API = "https://api.tatoeba.org/unstable/sentences?lang=jpn&sort=words&limit=10&trans%3Alang=eng&q=";
+      const KANJI_API = "https://kanjiapi.dev/v1/kanji/";
+      const HISTORY_KEY = "kotoba-history-v1";
+      const CACHE_KEY = "kotoba-jotoba-cache-v1";
+      const THEME_KEY = "kotoba-theme-v2";
+      const DEBOUNCE_MS = 350;
+      const MAX_HISTORY = 20;
+      const $ = (selector) => document.querySelector(selector);
+      const input = $("#query"), results = $("#results"), searchButton = $("#searchButton");
+      const exportButton = $("#exportButton"), resultLabel = $("#resultLabel"), kanjiMode = $("#kanjiMode");
+      let debounceTimer, activeController, requestNumber = 0, currentResult = null, selectedIndex = -1;
+
+      function readStorage(key, fallback) {
+        try { const value = localStorage.getItem(key); return value ? JSON.parse(value) : fallback; }
+        catch (error) { console.warn("Could not read local storage:", error); return fallback; }
+      }
+      function writeStorage(key, value) {
+        try { localStorage.setItem(key, JSON.stringify(value)); }
+        catch (error) { console.warn("Could not save local data:", error); }
+      }
+      let cache = readStorage(CACHE_KEY, {});
+      if (!cache || typeof cache !== "object" || Array.isArray(cache)) cache = {};
+      function escapeHTML(value) {
+        return String(value ?? "").replace(/[&<>"']/g, (char) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
+      }
+      function setTheme(theme) {
+        document.documentElement.dataset.theme = theme;
+        const dark = theme === "dark";
+        $("#themeButton").setAttribute("aria-label", dark ? "Switch to light mode" : "Switch to dark mode");
+        $("#themeIcon").innerHTML = dark
+          ? '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/>'
+          : '<path d="M20.2 15.2A8.6 8.6 0 0 1 8.8 3.8 8.7 8.7 0 1 0 20.2 15.2Z"/>';
+        document.querySelector('meta[name="theme-color"]').content = dark ? "#171a17" : "#f6f5f1";
+        try { localStorage.setItem(THEME_KEY, theme); } catch (error) { console.warn("Could not save theme:", error); }
+      }
+      function renderHistory() {
+        const history = readStorage(HISTORY_KEY, []);
+        const list = $("#historyList");
+        if (!Array.isArray(history) || !history.length) {
+          list.innerHTML = '<span class="history-empty">Your recent lookups will appear here.</span>';
+          return;
+        }
+        list.innerHTML = history.map((item, index) => `<button class="history-item" type="button" data-history-index="${index}" title="${escapeHTML(item.query)}"><span class="history-query">${escapeHTML(item.query)}</span>${item.kanji ? '<span class="history-mode">KANJI</span>' : ""}</button>`).join("");
+      }
+      function saveHistory(query, isKanji) {
+        let history = readStorage(HISTORY_KEY, []);
+        if (!Array.isArray(history)) history = [];
+        history = history.filter((item) => !(item.query === query && item.kanji === isKanji));
+        history.unshift({ query, kanji: isKanji, time: Date.now() });
+        writeStorage(HISTORY_KEY, history.slice(0, MAX_HISTORY));
+        renderHistory();
+      }
+      function setIdle() { results.setAttribute("aria-busy", "false"); searchButton.disabled = false; }
+      function setLoading(message) {
+        results.setAttribute("aria-busy", "true");
+        results.innerHTML = `<div class="loading"><span class="spinner" aria-hidden="true"></span>${escapeHTML(message)}</div>`;
+        searchButton.disabled = true;
+      }
+      function showMessage(title, message, isError = false) {
+        setIdle();
+        resultLabel.textContent = "";
+        results.innerHTML = `<div class="empty-state${isError ? " error-state" : ""}"><div class="empty-symbol" aria-hidden="true">${isError ? "!" : "辞"}</div><strong>${escapeHTML(title)}</strong><p>${escapeHTML(message)}</p></div>`;
+      }
+      function cacheRead(key) {
+        const item = cache[key];
+        if (!item || Date.now() - item.savedAt > 30 * 24 * 60 * 60 * 1000) return null;
+        return item.value;
+      }
+      function cacheWrite(key, value) {
+        cache[key] = { savedAt: Date.now(), value };
+        cache = Object.fromEntries(Object.entries(cache).sort((a,b) => b[1].savedAt - a[1].savedAt).slice(0,40));
+        writeStorage(CACHE_KEY, cache);
+      }
+      async function fetchJSON(url, signal) {
+        const response = await fetch(url, { signal, headers: { Accept: "application/json" } });
+        if (!response.ok) throw new Error(`${new URL(url).hostname} returned HTTP ${response.status}.`);
+        return response.json();
+      }
+      function formatPos(tags) {
+        return [...new Set((tags || []).filter((tag) => tag && !/^(Usually written using|Expressions \(phrases|Wikipedia definition|Other forms)$/.test(tag)))];
+      }
+      function audioURL(item) {
+        for (const value of [item.audio_url,item.audio,item.audio_file,item.pronunciation?.audio]) {
+          if (typeof value !== "string") continue;
+          try { const url = new URL(value, "https://jotoba.de"); if (url.protocol === "https:" || url.protocol === "http:") return url.href; } catch {}
+        }
+        return "";
+      }
+      function matchingExamples(sentenceData, item) {
+        if (!Array.isArray(sentenceData)) return [];
+        const terms = (item.japanese || []).map((entry) => entry.word || entry.reading).filter(Boolean);
+        return sentenceData.filter((sentence) => terms.some((term) => (sentence.text || "").includes(term))).slice(0,2);
+      }
+      function renderWordResults(items, sentenceData, query, fromCache = false) {
+        if (!items.length) {
+          resultLabel.textContent = `No results for “${query}”`;
+          showMessage("No matches found", "Try another spelling, a shorter phrase, or search in Japanese, kana, romaji, or English.");
+          return;
+        }
+        currentResult = { type: "words", query, data: items };
+        exportButton.disabled = false;
+        resultLabel.textContent = `${items.length} ${items.length === 1 ? "match" : "matches"}${fromCache ? " · cached for offline use" : ""}`;
+        results.innerHTML = items.map((item,index) => {
+          const forms = item.japanese || [];
+          const word = forms.find((form) => form.word)?.word || forms[0]?.reading || item.slug || "";
+          const readings = [...new Set(forms.map((form) => form.reading).filter((reading) => reading && reading !== word))];
+          const parts = formatPos((item.senses || []).flatMap((sense) => sense.parts_of_speech || []));
+          const meanings = [...new Set((item.senses || []).flatMap((sense) => sense.english_definitions || []))].slice(0,8);
+          const jlpt = (item.jlpt || []).filter(Boolean).map((level) => String(level).toUpperCase());
+          const examples = matchingExamples(sentenceData,item), audio = audioURL(item);
+          return `<article class="result-card" data-result-index="${index}" style="animation-delay:${Math.min(index*35,210)}ms">
+            <div class="entry-head"><div><button class="word-button" type="button" data-search-word="${escapeHTML(word)}" aria-label="Search ${escapeHTML(word)}">${escapeHTML(word)}</button>${readings.length ? `<div class="reading">${readings.map(escapeHTML).join(" · ")}</div>` : ""}</div>
+            ${audio ? `<button class="audio-button" type="button" data-audio="${escapeHTML(audio)}" aria-label="Play pronunciation"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 5 6 9H3v6h3l5 4V5Zm4 4a5 5 0 0 1 0 6m3-9a9 9 0 0 1 0 12"/></svg></button>` : item.is_common ? '<span class="common-badge">COMMON</span>' : ""}</div>
+            <div class="tags">${parts.map((part) => `<span class="tag">${escapeHTML(part)}</span>`).join("")}${jlpt.map((level) => `<span class="tag jlpt">${escapeHTML(level)}</span>`).join("")}</div>
+            ${meanings.length ? `<ol class="meanings">${meanings.map((meaning) => `<li>${escapeHTML(meaning)}</li>`).join("")}</ol>` : '<p class="example-empty">No English definitions provided.</p>'}
+            <div class="examples"><h3 class="section-label">Example sentences</h3>${examples.length ? examples.map((sentence) => {
+              const translation = (sentence.translations || []).filter((entry) => entry.lang === "eng").find((entry) => !entry.is_unapproved) || (sentence.translations || []).find((entry) => entry.lang === "eng");
+              const credit = sentence.id ? `<div class="example-credit"><a href="https://tatoeba.org/en/sentences/show/${encodeURIComponent(sentence.id)}" target="_blank" rel="noopener noreferrer">Tatoeba · ${escapeHTML(sentence.owner || "contributor")}</a>${translation?.owner ? ` · translated by ${escapeHTML(translation.owner)}` : ""}${sentence.license ? ` · ${escapeHTML(sentence.license)}` : ""}</div>` : "";
+              return `<div class="example"><div class="example-ja" lang="ja">${escapeHTML(sentence.text || "")}</div><div class="example-en">${escapeHTML(translation?.text || "")}</div>${credit}</div>`;
+            }).join("") : '<div class="example-empty">No example sentences are available for this entry.</div>'}</div>
+          </article>`;
+        }).join("");
+        setIdle();
+      }
+      function pickKanji(query) { return [...query].find((char) => /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/u.test(char)); }
+      async function searchKanji(query, token, signal) {
+        const character = pickKanji(query);
+        if (!character) throw new Error("Enter a kanji character to use Kanji mode.");
+        const key = `kanji:${character}`;
+        let data = cacheRead(key);
+        if (!data) { data = await fetchJSON(KANJI_API + encodeURIComponent(character),signal); cacheWrite(key,data); }
+        if (token !== requestNumber) return;
+        currentResult = { type: "kanji", query: character, data };
+        exportButton.disabled = false;
+        resultLabel.textContent = `Kanji: ${character}${cacheRead(key) ? " · saved locally" : ""}`;
+        let compounds = cacheRead(`compounds:${character}`);
+        if (!compounds) {
+          compounds = await searchDictionary(character,signal);
+          cacheWrite(`compounds:${character}`,compounds);
+        }
+        if (token !== requestNumber) return;
+        const words = compounds.filter((item) => (item.japanese || []).some((form) => form.word?.includes(character))).slice(0,8);
+        const examples = words.map((item) => {
+          const form = (item.japanese || []).find((entry) => entry.word?.includes(character)) || item.japanese?.[0] || {};
+          return `<button class="history-item" type="button" data-search-word="${escapeHTML(form.word || form.reading || "")}"><span class="history-query">${escapeHTML(form.word || form.reading || "")}</span><span class="history-mode">${escapeHTML(form.reading || "")}</span></button>`;
+        }).join("");
+        results.innerHTML = `<article class="kanji-card">
+          <div class="kanji-title"><div class="kanji-glyph" lang="ja">${escapeHTML(character)}</div><div class="kanji-meta">Stroke count: ${Number.isFinite(data.stroke_count) ? escapeHTML(data.stroke_count) : "—"}<br>JLPT: ${data.jlpt ? `N${escapeHTML(data.jlpt)}` : "Not listed"}${data.grade ? `<br>Grade: ${escapeHTML(data.grade)}` : ""}</div></div>
+          <section class="kanji-section"><h3 class="section-label">Meanings</h3><div>${(data.meanings || []).length ? data.meanings.map(escapeHTML).join(" · ") : "No meanings listed."}</div></section>
+          <section class="kanji-section"><h3 class="section-label">On readings</h3><div class="reading-list">${(data.on_readings || []).length ? data.on_readings.map((value) => `<span class="reading-chip">${escapeHTML(value)}</span>`).join("") : '<span class="example-empty">None listed</span>'}</div></section>
+          <section class="kanji-section"><h3 class="section-label">Kun readings</h3><div class="reading-list">${(data.kun_readings || []).length ? data.kun_readings.map((value) => `<span class="reading-chip">${escapeHTML(value)}</span>`).join("") : '<span class="example-empty">None listed</span>'}</div></section>
+          <section class="kanji-section"><h3 class="section-label">Radical</h3><div>${data.radical ? escapeHTML(typeof data.radical === "string" ? data.radical : JSON.stringify(data.radical)) : '<span class="example-empty">Not included in the available kanji data.</span>'}</div></section>
+          <section class="kanji-section"><h3 class="section-label">Example compounds</h3><div class="history-list">${examples || '<span class="example-empty">No compounds found.</span>'}</div></section>
+        </article>`;
+        setIdle();
+      }
+      async function search(requestedQuery = null, requestedMode = null) {
+        clearTimeout(debounceTimer);
+        const query = (requestedQuery ?? input.value).trim();
+        if (!query) {
+          currentResult = null; exportButton.disabled = true; resultLabel.textContent = "Ready when you are";
+          showMessage("Your next discovery starts here","Search a word, paste a sentence, or switch on Kanji mode to explore a character.");
+          return;
+        }
+        const isKanji = requestedMode ?? kanjiMode.checked;
+        input.value = requestedQuery ?? input.value;
+        activeController?.abort();
+        const controller = new AbortController(); activeController = controller;
+        const token = ++requestNumber;
+        saveHistory(query,isKanji); setLoading(isKanji ? "Looking up kanji…" : "Searching the dictionary…");
+        resultLabel.textContent = "Searching…"; exportButton.disabled = true;
+        try {
+          if (isKanji) { await searchKanji(query,token,controller.signal); return; }
+          const key = `words:${query}`;
+          const cached = cacheRead(key);
+          let words;
+          if (cached) words = cached;
+          else {
+            words = await searchDictionary(query,controller.signal);
+            cacheWrite(key,words);
+          }
+          if (token !== requestNumber) return;
+          let sentences = [], sentenceError = null;
+          try {
+            const sentenceKey = `sentences:${query}`;
+            const sentenceCached = cacheRead(sentenceKey);
+            if (sentenceCached) sentences = sentenceCached;
+            else {
+              const japaneseQuery = /[\u3040-\u30ff\u3400-\u9fff]/u.test(query) ? query : (words[0]?.japanese || []).find((entry) => entry.word)?.word || query;
+              const response = await fetchJSON(SENTENCES_API + encodeURIComponent(japaneseQuery),controller.signal);
+              sentences = response.data || []; cacheWrite(sentenceKey,sentences);
+            }
+          } catch (error) {
+            if (error.name === "AbortError") throw error;
+            console.warn("Tatoeba examples could not be loaded:", error);
+            sentenceError = error;
+          }
+          if (token !== requestNumber) return;
+          renderWordResults(words,sentences,query,Boolean(cached));
+          if (sentenceError) resultLabel.textContent += " · Example service unavailable";
+        } catch (error) {
+          if (error.name === "AbortError" || token !== requestNumber) return;
+          console.error("Search failed:",error);
+          const cached = isKanji ? cacheRead(`kanji:${pickKanji(query)}`) : cacheRead(`words:${query}`);
+          if (cached && !isKanji) {
+            renderWordResults(cached,cacheRead(`sentences:${query}`) || [],query,true);
+            resultLabel.textContent += " · network unavailable";
+          } else {
+            const detail = String(error.message || "");
+            showMessage("Dictionary request failed",`${detail} Check your connection and try again. Requests go directly to Jotoba and KanjiAPI; a provider outage or browser access restriction may prevent access.`,true);
+          }
+        } finally { if (token === requestNumber) setIdle(); }
+      }
+      function scheduleSearch() {
+        clearTimeout(debounceTimer);
+        if (input.value.trim()) debounceTimer = setTimeout(() => search(),DEBOUNCE_MS);
+      }
+      function exportCurrent() {
+        if (!currentResult) return;
+        const blob = new Blob([JSON.stringify({query:currentResult.query,type:currentResult.type,exportedAt:new Date().toISOString(),data:currentResult.data},null,2)],{type:"application/json;charset=utf-8"});
+        const url = URL.createObjectURL(blob), link = document.createElement("a");
+        link.href = url; link.download = `jotoba-${currentResult.type}-${currentResult.query.replace(/[^\p{L}\p{N}-]+/gu,"-")}.json`;
+        document.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url),1000);
+      }
+      input.addEventListener("input",scheduleSearch);
+      input.addEventListener("keydown",(event) => {
+        if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); search(); return; }
+        if (event.key === "Escape") {
+          event.preventDefault(); input.value = ""; activeController?.abort(); requestNumber++;
+          currentResult = null; exportButton.disabled = true; resultLabel.textContent = "Ready when you are";
+          showMessage("Your next discovery starts here","Search a word, paste a sentence, or switch on Kanji mode to explore a character."); input.focus(); return;
+        }
+        if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+          const cards = [...results.querySelectorAll(".result-card,.kanji-card")]; if (!cards.length) return;
+          event.preventDefault();
+          selectedIndex = event.key === "ArrowDown" ? Math.min(selectedIndex+1,cards.length-1) : Math.max(selectedIndex-1,0);
+          cards.forEach((card,index) => card.style.outline = index === selectedIndex ? "2px solid var(--accent)" : "");
+          cards[selectedIndex].scrollIntoView({block:"nearest",behavior:"smooth"});
+        }
+      });
+      $("#searchButton").addEventListener("click",() => search());
+      kanjiMode.addEventListener("change",() => { if (input.value.trim()) search(); });
+      exportButton.addEventListener("click",exportCurrent);
+      $("#clearButton").addEventListener("click",() => {
+        input.value = ""; activeController?.abort(); requestNumber++; currentResult = null; exportButton.disabled = true;
+        resultLabel.textContent = "Ready when you are";
+        showMessage("Your next discovery starts here","Search a word, paste a sentence, or switch on Kanji mode to explore a character."); input.focus();
+      });
+      $("#themeButton").addEventListener("click",() => setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark"));
+      $("#clearHistory").addEventListener("click",() => { writeStorage(HISTORY_KEY,[]); renderHistory(); });
+      $("#historyList").addEventListener("click",(event) => {
+        const button = event.target.closest("[data-history-index]"); if (!button) return;
+        const item = readStorage(HISTORY_KEY,[])[Number(button.dataset.historyIndex)]; if (!item) return;
+        kanjiMode.checked = Boolean(item.kanji); input.value = item.query; search(item.query,Boolean(item.kanji));
+      });
+      results.addEventListener("click",(event) => {
+        const wordButton = event.target.closest("[data-search-word]");
+        if (wordButton) {
+          const word = wordButton.dataset.searchWord; input.value = word; kanjiMode.checked = false;
+          search(word,false); input.focus(); return;
+        }
+        const audioButton = event.target.closest("[data-audio]");
+        if (audioButton) new Audio(audioButton.dataset.audio).play().catch((error) => { console.warn("Audio playback failed:",error); resultLabel.textContent = "Audio playback is unavailable"; });
+      });
+      try { setTheme(localStorage.getItem(THEME_KEY) === "light" ? "light" : "dark"); }
+      catch (error) { console.warn("Could not read theme:", error); setTheme("dark"); }
+      renderHistory();
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,669 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#171b18">
+  <title>Kanji Chizuchō — Japanese character explorer</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --page: #f5f4ef;
+      --card: #fff;
+      --soft: #f0efe9;
+      --ink: #22271f;
+      --muted: #73796f;
+      --line: #e3e4dc;
+      --accent: #397055;
+      --accent-strong: #28563f;
+      --accent-soft: #e5efe8;
+      --bad: #a33e36;
+      --warn: #95640a;
+      --shadow: 0 14px 42px rgb(37 48 37 / 7%);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    :root[data-theme="dark"] {
+      color-scheme: dark;
+      --page: #171b18;
+      --card: #222923;
+      --soft: #2b332c;
+      --ink: #edf1eb;
+      --muted: #a5afa5;
+      --line: #3a443b;
+      --accent: #9dceab;
+      --accent-strong: #bee4c7;
+      --accent-soft: #2e4033;
+      --bad: #ffaaa0;
+      --warn: #f2c66e;
+      --shadow: 0 14px 42px rgb(0 0 0 / 18%);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: var(--page); color: var(--ink); transition: background .2s, color .2s; }
+    button, input { font: inherit; }
+    button { color: inherit; cursor: pointer; }
+    button:focus-visible, input:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 45%, transparent); outline-offset: 2px; }
+    .shell { width: min(100% - 40px, 1120px); margin: auto; }
+    header { display: flex; min-height: 66px; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); }
+    .brand { display: flex; gap: 10px; align-items: center; color: var(--ink); text-decoration: none; }
+    .brand-mark { display: grid; width: 38px; height: 38px; place-items: center; border-radius: 12px; background: var(--accent); color: white; font: 24px/1 "Yu Mincho", "Hiragino Mincho ProN", serif; }
+    .brand-name { font-size: 17px; font-weight: 800; letter-spacing: -.035em; }
+    .brand-note { margin-left: 7px; color: var(--muted); font-size: 11px; font-weight: 500; letter-spacing: 0; }
+    .icon-button { width: 40px; height: 40px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
+    main { padding: 24px 0 32px; }
+    .intro { margin: 0 auto 20px; text-align: center; }
+    .eyebrow { margin: 0 0 7px; color: var(--accent); font-size: 10px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
+    h1 { margin: 0; font: 500 clamp(30px, 5vw, 44px)/1.12 Georgia, "Times New Roman", serif; letter-spacing: -.045em; }
+    .intro p { margin: 8px auto 0; max-width: 590px; color: var(--muted); font-size: 13px; line-height: 1.55; }
+    .layout { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 16px; align-items: start; }
+    .main-column, .side-column { min-width: 0; }
+    .panel { border: 1px solid var(--line); border-radius: 15px; background: var(--card); box-shadow: var(--shadow); }
+    .search-panel { padding: 17px; }
+    .search-label { display: block; margin-bottom: 8px; font-size: 12px; font-weight: 800; }
+    .search-row { display: flex; gap: 8px; }
+    .search-input { flex: 1; min-width: 0; min-height: 44px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--card); color: var(--ink); font-size: 15px; }
+    .button { min-height: 40px; padding: 9px 13px; border: 1px solid var(--line); border-radius: 9px; background: var(--card); color: var(--ink); font-size: 12px; font-weight: 750; transition: .15s ease; }
+    .button:hover { border-color: var(--accent); }
+    .button.primary { border-color: var(--accent); background: var(--accent); color: #fff; }
+    :root[data-theme="dark"] .button.primary { color: #17231b; }
+    .button:disabled { cursor: wait; opacity: .55; }
+    .actions { display: flex; gap: 8px; margin-top: 9px; }
+    .actions .button { flex: 1; }
+    .hint { margin: 9px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .shortcuts { margin-top: 8px; color: var(--muted); font-size: 10px; }
+    kbd { padding: 2px 5px; border: 1px solid var(--line); border-radius: 4px; background: var(--soft); color: var(--ink); font: inherit; }
+    .notice { display: none; margin: 12px 0 0; padding: 10px 12px; border: 1px solid color-mix(in srgb, var(--warn) 55%, var(--line)); border-radius: 9px; background: color-mix(in srgb, var(--warn) 10%, var(--card)); color: var(--ink); font-size: 12px; line-height: 1.5; }
+    .notice.show { display: block; }
+    .notice.error { border-color: color-mix(in srgb, var(--bad) 50%, var(--line)); color: var(--bad); }
+    .results { margin-top: 13px; }
+    .results:empty { display: none; }
+    .result-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 0 0 9px; font-size: 13px; }
+    .result-count { color: var(--muted); font-size: 11px; font-weight: 500; }
+    .result-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(68px, 1fr)); gap: 7px; }
+    .result-card { display: flex; min-height: 83px; flex-direction: column; align-items: center; justify-content: center; gap: 3px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
+    .result-card:hover { border-color: var(--accent); background: var(--accent-soft); }
+    .result-kanji { font: 32px/1.2 "Yu Mincho", "Hiragino Mincho ProN", "Noto Serif CJK JP", serif; }
+    .result-meaning { max-width: 100%; overflow: hidden; color: var(--muted); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+    .status { display: flex; min-height: 34px; align-items: center; gap: 8px; padding: 3px 2px; color: var(--muted); font-size: 11px; }
+    .status[hidden] { display: none; }
+    .spinner { width: 15px; height: 15px; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin .75s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .detail { margin-top: 13px; overflow: hidden; }
+    .detail:empty { display: none; }
+    .detail-top { display: grid; grid-template-columns: minmax(130px, .7fr) 1.3fr; gap: 15px; padding: 19px; border-bottom: 1px solid var(--line); }
+    .hero-kanji { display: grid; min-height: 150px; place-items: center; border-radius: 12px; background: var(--soft); font: clamp(82px, 14vw, 118px)/1 "Yu Mincho", "Hiragino Mincho ProN", "Noto Serif CJK JP", serif; }
+    .hero-info { align-self: center; min-width: 0; }
+    .hero-title { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 6px; }
+    .hero-title h2 { margin: 0; font: 500 23px/1.2 Georgia, "Times New Roman", serif; }
+    .tag { padding: 5px 8px; border-radius: 99px; background: var(--accent-soft); color: var(--accent-strong); font-size: 10px; font-weight: 800; }
+    .meanings { margin: 0; font-size: 14px; line-height: 1.55; }
+    .copy-button { margin-top: 12px; }
+    .detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; padding: 14px; }
+    .data-block { min-width: 0; padding: 11px; border-radius: 10px; background: var(--soft); }
+    .data-label { margin: 0 0 6px; color: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+    .data-value { margin: 0; overflow-wrap: anywhere; font-size: 13px; line-height: 1.55; }
+    .compounds { grid-column: 1 / -1; }
+    .compound-list { display: grid; gap: 0; }
+    .compound { display: grid; grid-template-columns: minmax(75px, .55fr) minmax(90px, .75fr) 1.7fr; gap: 8px; align-items: baseline; padding: 7px 0; border-top: 1px solid var(--line); }
+    .compound:first-child { border-top: 0; }
+    .compound-word { font-size: 19px; }
+    .compound-reading { color: var(--muted); font-size: 11px; }
+    .compound-meaning { color: var(--muted); font-size: 11px; line-height: 1.4; }
+    .radical-note { color: var(--muted); font-size: 11px; }
+    .side-panel { padding: 15px; }
+    .side-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 10px; font-size: 13px; font-weight: 800; }
+    .clear-history { padding: 4px 0; border: 0; background: transparent; color: var(--muted); font-size: 10px; text-decoration: underline; }
+    .history-list { display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr); gap: 5px; }
+    .history-list:empty::after { content: "Kanji you view will appear here."; color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .history-item { display: flex; width: 100%; min-width: 0; gap: 9px; align-items: center; overflow: hidden; padding: 7px; border: 1px solid transparent; border-radius: 8px; background: transparent; text-align: left; }
+    .history-item:hover { border-color: var(--line); background: var(--soft); }
+    .history-glyph { flex: 0 0 32px; width: 32px; text-align: center; font: 24px/1.2 "Yu Mincho", "Hiragino Mincho ProN", serif; }
+    .history-meta { flex: 1 1 0; min-width: 0; overflow: hidden; }
+    .history-meaning { display: block; max-width: 100%; overflow: hidden; font-size: 11px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+    .history-date { display: block; max-width: 100%; margin-top: 2px; overflow: hidden; color: var(--muted); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+    footer { padding-top: 16px; text-align: center; color: var(--muted); font-size: 10px; }
+    @media (max-width: 760px) {
+      .shell { width: min(100% - 24px, 620px); }
+      main { padding-top: 18px; }
+      .layout { grid-template-columns: 1fr; }
+      .side-column { order: 2; }
+      .history-list { grid-template-columns: minmax(0, 1fr); }
+    }
+    @media (max-width: 470px) {
+      .brand-note { display: none; }
+      .search-row { flex-wrap: wrap; }
+      .search-row .search-input { flex-basis: 100%; }
+      .search-row .button { flex: 1; }
+      .detail-top { grid-template-columns: 1fr; }
+      .hero-kanji { min-height: 130px; }
+      .detail-grid { grid-template-columns: 1fr; }
+      .compound { grid-template-columns: .75fr 1fr; }
+      .compound-meaning { grid-column: 1 / -1; }
+      .compounds { grid-column: auto; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <a class="brand" href="#" aria-label="Kanji Chizuchō home">
+        <span class="brand-mark" aria-hidden="true">漢</span>
+        <span class="brand-name">Kanji Chizuchō<span class="brand-note">Japanese character explorer</span></span>
+      </a>
+      <button class="icon-button" id="themeButton" type="button" aria-label="Switch to dark mode" title="Toggle dark mode">◐</button>
+    </header>
+    <main>
+      <section class="intro" aria-labelledby="pageTitle">
+        <p class="eyebrow">Your field guide to kanji</p>
+        <h1 id="pageTitle">Explore a character.</h1>
+        <p>Look up a kanji, browse a JLPT level, or search English meanings. Select any result to see its readings, compounds, and more.</p>
+      </section>
+      <div class="layout">
+        <section class="main-column" aria-label="Kanji search and details">
+          <form class="panel search-panel" id="searchForm">
+            <label class="search-label" for="query">What would you like to explore?</label>
+            <div class="search-row">
+              <input class="search-input" id="query" name="query" type="search" autocomplete="off" placeholder="Try 水, N3, or water" aria-describedby="searchHint">
+              <button class="button primary" id="searchButton" type="submit">Search</button>
+            </div>
+            <div class="actions">
+              <button class="button" id="randomButton" type="button">↻ Random kanji <kbd>R</kbd></button>
+            </div>
+            <p class="hint" id="searchHint">Enter one kanji, a JLPT level (N1–N5), or an English meaning.</p>
+            <p class="shortcuts"><kbd>Enter</kbd> search · <kbd>R</kbd> random · <kbd>Backspace</kbd> clear</p>
+            <div class="notice" id="notice" role="status" aria-live="polite"></div>
+          </form>
+          <div class="status" id="loading" role="status" aria-live="polite" hidden><span class="spinner" aria-hidden="true"></span><span id="loadingText">Looking up kanji…</span></div>
+          <section class="results" id="results" aria-live="polite"></section>
+          <article class="panel detail" id="detail" aria-live="polite"></article>
+        </section>
+        <aside class="side-column">
+          <section class="panel side-panel" aria-labelledby="historyTitle">
+            <h2 class="side-title" id="historyTitle">Recent kanji <button class="clear-history" id="clearHistory" type="button">Clear</button></h2>
+            <div class="history-list" id="historyList"></div>
+          </section>
+        </aside>
+      </div>
+      <footer>Data from <a href="https://kanjiapi.dev" target="_blank" rel="noreferrer">kanjiapi.dev</a></footer>
+    </main>
+  </div>
+  <script>
+    (() => {
+      "use strict";
+      const API = "https://kanjiapi.dev";
+      const HISTORY_KEY = "nihon:kanji-atlas:history";
+      const THEME_KEY = "nihon:kanji-atlas:theme-v2";
+      const CACHE_PREFIX = "nihon:kanji-atlas:cache:";
+      const elements = {
+        query: document.getElementById("query"),
+        form: document.getElementById("searchForm"),
+        searchButton: document.getElementById("searchButton"),
+        randomButton: document.getElementById("randomButton"),
+        themeButton: document.getElementById("themeButton"),
+        notice: document.getElementById("notice"),
+        loading: document.getElementById("loading"),
+        loadingText: document.getElementById("loadingText"),
+        results: document.getElementById("results"),
+        detail: document.getElementById("detail"),
+        historyList: document.getElementById("historyList"),
+        clearHistory: document.getElementById("clearHistory")
+      };
+      let requestNumber = 0;
+      let kanjiListCache = null;
+      let enrichedCache = null;
+
+      function readStorage(key, fallback) {
+        try {
+          const value = localStorage.getItem(key);
+          return value === null ? fallback : JSON.parse(value);
+        } catch (error) {
+          console.warn(`Could not read ${key} from local storage.`, error);
+          return fallback;
+        }
+      }
+
+      function writeStorage(key, value) {
+        try {
+          localStorage.setItem(key, JSON.stringify(value));
+          return true;
+        } catch (error) {
+          console.warn(`Could not save ${key} in local storage.`, error);
+          return false;
+        }
+      }
+
+      function setNotice(message = "", isError = false) {
+        elements.notice.textContent = message;
+        elements.notice.classList.toggle("show", Boolean(message));
+        elements.notice.classList.toggle("error", Boolean(message) && isError);
+      }
+
+      function setLoading(loading, text = "Looking up kanji…") {
+        elements.loading.hidden = !loading;
+        elements.loadingText.textContent = text;
+        elements.searchButton.disabled = loading;
+        elements.randomButton.disabled = loading;
+      }
+
+      async function fetchJson(url, { persist = true } = {}) {
+        const cacheKey = CACHE_PREFIX + url;
+        let cached = null;
+        try {
+          const raw = localStorage.getItem(cacheKey);
+          cached = raw === null ? null : JSON.parse(raw);
+        } catch (error) {
+          console.warn("Could not read cached Kanji API data.", error);
+        }
+        try {
+          const response = await fetch(url, { headers: { Accept: "application/json" } });
+          if (!response.ok) {
+            const error = new Error(`Kanji API returned HTTP ${response.status}.`);
+            error.status = response.status;
+            throw error;
+          }
+          const data = await response.json();
+          window.dispatchEvent(new CustomEvent("kanji-network", { detail: { online: true } }));
+          if (persist) {
+            const serialized = JSON.stringify(data);
+            if (serialized.length < 450000) {
+              try {
+                localStorage.setItem(cacheKey, serialized);
+              } catch (error) {
+                console.warn("Could not cache Kanji API data.", error);
+              }
+            }
+          }
+          return data;
+        } catch (error) {
+          if (cached !== null) {
+            window.dispatchEvent(new CustomEvent("kanji-network", { detail: { online: false, cached: true } }));
+            return cached;
+          }
+          window.dispatchEvent(new CustomEvent("kanji-network", { detail: { online: false, cached: false } }));
+          throw error;
+        }
+      }
+
+      async function fetchCandidates(urls, options) {
+        let lastError;
+        for (const url of urls) {
+          try {
+            return await fetchJson(url, options);
+          } catch (error) {
+            lastError = error;
+            if (!(error.status === 404 || error.status === 405)) throw error;
+          }
+        }
+        throw lastError || new Error("This Kanji API endpoint is unavailable.");
+      }
+
+      function encode(value) {
+        return encodeURIComponent(value);
+      }
+
+      function isSingleKanji(value) {
+        const characters = Array.from(value);
+        return characters.length === 1 && /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\u{20000}-\u{3134f}]/u.test(value);
+      }
+
+      function escapeHtml(value) {
+        return String(value ?? "").replace(/[&<>"']/g, (character) => ({
+          "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+        })[character]);
+      }
+
+      function readings(values) {
+        return Array.isArray(values) && values.length ? values.join("、") : "—";
+      }
+
+      function meanings(record) {
+        return Array.isArray(record?.meanings) ? record.meanings.join(", ") : "";
+      }
+
+      function radicalContent(record) {
+        const radicals = record?.radicals ?? record?.radical;
+        if (!radicals) return '<span class="radical-note">Radical data is not included in this kanjiapi.dev record.</span>';
+        const items = Array.isArray(radicals) ? radicals : [radicals];
+        return items.map((item) => {
+          if (typeof item === "string") return escapeHtml(item);
+          const character = item.character ?? item.kanji ?? item.radical ?? "";
+          const meaning = item.meanings ?? item.meaning ?? item.name ?? "";
+          const normalizedMeaning = Array.isArray(meaning) ? meaning.join(", ") : meaning;
+          return `${escapeHtml(character)}${normalizedMeaning ? ` — ${escapeHtml(normalizedMeaning)}` : ""}`;
+        }).join("、");
+      }
+
+      function renderResults(title, records, total = records.length) {
+        elements.detail.replaceChildren();
+        const heading = document.createElement("h2");
+        heading.className = "result-heading";
+        const label = document.createElement("span");
+        label.textContent = title;
+        const count = document.createElement("span");
+        count.className = "result-count";
+        count.textContent = `${total} found${total > records.length ? ` · showing ${records.length}` : ""}`;
+        heading.append(label, count);
+
+        const grid = document.createElement("div");
+        grid.className = "result-grid";
+        records.forEach((record) => {
+          const character = typeof record === "string" ? record : record.kanji;
+          if (!character) return;
+          const button = document.createElement("button");
+          button.className = "result-card";
+          button.type = "button";
+          button.dataset.kanji = character;
+          button.setAttribute("aria-label", `View ${character}${meanings(record) ? `, ${meanings(record)}` : ""}`);
+          const glyph = document.createElement("span");
+          glyph.className = "result-kanji";
+          glyph.textContent = character;
+          const meaning = document.createElement("span");
+          meaning.className = "result-meaning";
+          meaning.textContent = meanings(record) || "View details";
+          button.append(glyph, meaning);
+          grid.append(button);
+        });
+        elements.results.replaceChildren(heading, grid);
+      }
+
+      function textBlock(label, value, className = "") {
+        return `<section class="data-block ${className}"><h3 class="data-label">${escapeHtml(label)}</h3><p class="data-value">${value}</p></section>`;
+      }
+
+      function renderDetail(record, words) {
+        const character = record.kanji;
+        const compounds = [];
+        const seen = new Set();
+        (Array.isArray(words) ? words : []).forEach((entry) => {
+          const variants = Array.isArray(entry.variants) ? entry.variants : [];
+          const selected = variants.find((variant) => variant.written?.includes(character)) || variants[0];
+          if (!selected?.written || seen.has(selected.written) || !selected.written.includes(character)) return;
+          seen.add(selected.written);
+          const glosses = (entry.meanings || []).flatMap((meaning) => meaning.glosses || []);
+          compounds.push({ written: selected.written, reading: selected.pronounced || "—", gloss: glosses.slice(0, 2).join("; ") || "Meaning unavailable" });
+        });
+        const compoundMarkup = compounds.length
+          ? `<div class="compound-list">${compounds.slice(0, 10).map((item) => `<div class="compound"><span class="compound-word">${escapeHtml(item.written)}</span><span class="compound-reading">${escapeHtml(item.reading)}</span><span class="compound-meaning">${escapeHtml(item.gloss)}</span></div>`).join("")}</div>`
+          : '<span class="radical-note">No example compounds were found for this character.</span>';
+        const jlpt = record.jlpt ? `JLPT N${record.jlpt}` : "No JLPT level";
+        const frequency = record.freq_mainichi_shinbun ? `#${record.freq_mainichi_shinbun}` : "Not ranked";
+        const radicalValue = radicalContent(record);
+        const detail = document.createElement("div");
+        detail.className = "detail-inner";
+        detail.innerHTML = `
+          <div class="detail-top">
+            <div class="hero-kanji" aria-label="Kanji ${escapeHtml(character)}">${escapeHtml(character)}</div>
+            <div class="hero-info">
+              <div class="hero-title"><h2>${escapeHtml(character)}</h2><span class="tag">${escapeHtml(jlpt)}</span></div>
+              <p class="meanings">${escapeHtml(meanings(record) || "No English meanings listed.")}</p>
+              <button class="button copy-button" id="copyKanji" type="button" data-kanji="${escapeHtml(character)}">Copy kanji</button>
+            </div>
+          </div>
+          <div class="detail-grid">
+            ${textBlock("On-yomi · 音読み", escapeHtml(readings(record.on_readings)))}
+            ${textBlock("Kun-yomi · 訓読み", escapeHtml(readings(record.kun_readings)))}
+            ${textBlock("Stroke count", escapeHtml(record.stroke_count ?? "—"))}
+            ${textBlock("Frequency rank", escapeHtml(frequency))}
+            ${textBlock("Radical(s) · 部首", radicalValue)}
+            ${textBlock("Grade", escapeHtml(record.grade ? `School grade ${record.grade}` : "Not specified"))}
+            ${textBlock("Example compounds", compoundMarkup, "compounds")}
+          </div>`;
+        elements.detail.replaceChildren(detail);
+        document.getElementById("copyKanji").addEventListener("click", async (event) => {
+          try {
+            await navigator.clipboard.writeText(character);
+            event.currentTarget.textContent = "Copied";
+            window.setTimeout(() => { event.currentTarget.textContent = "Copy kanji"; }, 1400);
+          } catch (error) {
+            setNotice("Clipboard access is unavailable. Select and copy the kanji directly.", true);
+          }
+        });
+      }
+
+      async function getKanji(character) {
+        return fetchCandidates([
+          `${API}/api/kanji/${encode(character)}`,
+          `${API}/v1/kanji/${encode(character)}`
+        ]);
+      }
+
+      async function getWords(character) {
+        try {
+          return await fetchJson(`${API}/v1/words/${encode(character)}`);
+        } catch (error) {
+          console.warn(`Could not load example compounds for ${character}.`, error);
+          return [];
+        }
+      }
+
+      function saveHistory(record) {
+        const storedHistory = readStorage(HISTORY_KEY, []);
+        const history = Array.isArray(storedHistory) ? storedHistory : [];
+        const updated = [{ kanji: record.kanji, meaning: meanings(record), viewedAt: Date.now() },
+          ...history.filter((item) => item.kanji !== record.kanji)].slice(0, 20);
+        writeStorage(HISTORY_KEY, updated);
+        renderHistory();
+      }
+
+      function renderHistory() {
+        const storedHistory = readStorage(HISTORY_KEY, []);
+        const history = Array.isArray(storedHistory) ? storedHistory : [];
+        elements.historyList.replaceChildren();
+        history.slice(0, 20).forEach((item) => {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "history-item";
+          button.dataset.kanji = item.kanji;
+          button.setAttribute("aria-label", `View ${item.kanji}, ${item.meaning || "kanji"}`);
+          const glyph = document.createElement("span");
+          glyph.className = "history-glyph";
+          glyph.textContent = item.kanji;
+          const meta = document.createElement("span");
+          meta.className = "history-meta";
+          const meaning = document.createElement("span");
+          meaning.className = "history-meaning";
+          meaning.textContent = item.meaning || "Kanji";
+          meaning.title = item.meaning || "Kanji";
+          const date = document.createElement("span");
+          date.className = "history-date";
+          date.textContent = new Date(item.viewedAt).toLocaleDateString();
+          meta.append(meaning, date);
+          button.append(glyph, meta);
+          elements.historyList.append(button);
+        });
+      }
+
+      async function showKanji(character, token = ++requestNumber) {
+        setLoading(true, `Looking up ${character}…`);
+        elements.results.replaceChildren();
+        setNotice("");
+        try {
+          const record = await getKanji(character);
+          if (token !== requestNumber) return;
+          if (!record || typeof record !== "object" || !record.kanji) throw new Error("No kanji details were returned.");
+          const words = await getWords(character);
+          if (token !== requestNumber) return;
+          renderDetail(record, words);
+          saveHistory(record);
+        } catch (error) {
+          if (token !== requestNumber) return;
+          elements.detail.replaceChildren();
+          setNotice(`Could not load ${character}. Check your connection and try again. ${error.message}`, true);
+        } finally {
+          if (token === requestNumber) setLoading(false);
+        }
+      }
+
+      async function getJlptKanji(level) {
+        const digit = level.match(/[1-5]/)[0];
+        return fetchCandidates([
+          `${API}/api/kanji/jlpt/${encode(level)}`,
+          `${API}/v1/kanji/jlpt-${digit}`
+        ]);
+      }
+
+      async function getAllEnriched() {
+        if (enrichedCache) return enrichedCache;
+        enrichedCache = await fetchJson(`${API}/v1/kanji/all-enriched`, { persist: false });
+        return enrichedCache;
+      }
+
+      function meaningMatch(record, keyword) {
+        const search = keyword.toLocaleLowerCase();
+        return [record.kanji, ...(record.meanings || []), record.heisig_en || ""]
+          .some((value) => String(value).toLocaleLowerCase().includes(search));
+      }
+
+      async function searchMeaning(keyword) {
+        const localResultsKey = CACHE_PREFIX + "meaning:" + keyword.toLocaleLowerCase();
+        const cachedMatches = readStorage(localResultsKey, null);
+        if (cachedMatches) return cachedMatches;
+        try {
+          return await fetchCandidates([`${API}/api/kanji/meaning/${encode(keyword)}`]);
+        } catch (error) {
+          if (!(error.status === 404 || error.status === 405)) throw error;
+        }
+        const all = await getAllEnriched();
+        if (!Array.isArray(all)) throw new Error("The meaning search data was not in the expected format.");
+        const matches = all.filter((record) => meaningMatch(record, keyword));
+        writeStorage(localResultsKey, matches);
+        return matches;
+      }
+
+      async function fetchKanjiList() {
+        if (kanjiListCache) return kanjiListCache;
+        kanjiListCache = await fetchJson(`${API}/v1/kanji/all`);
+        if (!Array.isArray(kanjiListCache)) throw new Error("The kanji list was not in the expected format.");
+        return kanjiListCache;
+      }
+
+      async function getRandomKanji() {
+        try {
+          const response = await fetchCandidates([`${API}/api/kanji/random`]);
+          const random = Array.isArray(response) ? response[Math.floor(Math.random() * response.length)] : response;
+          return typeof random === "string" ? random : random.kanji;
+        } catch (error) {
+          if (!(error.status === 404 || error.status === 405)) throw error;
+          const characters = await fetchKanjiList();
+          if (!characters.length) throw new Error("The kanji list is empty.");
+          return characters[Math.floor(Math.random() * characters.length)];
+        }
+      }
+
+      async function runSearch(query) {
+        const token = ++requestNumber;
+        const term = query.trim();
+        setNotice("");
+        elements.detail.replaceChildren();
+        elements.results.replaceChildren();
+        if (!term) {
+          setNotice("Enter a kanji, JLPT level, or English meaning to search.", true);
+          return;
+        }
+        if (isSingleKanji(term)) {
+          await showKanji(term, token);
+          return;
+        }
+        setLoading(true, "Searching kanji…");
+        try {
+          if (/^(?:jlpt\s*)?n[1-5]$/i.test(term)) {
+            const response = await getJlptKanji(term.toUpperCase().replace(/^JLPT\s*/, ""));
+            if (token !== requestNumber) return;
+            const records = Array.isArray(response) ? response : [];
+            if (!records.length) {
+              setNotice(`No kanji were found for ${term.toUpperCase()}.`, true);
+              return;
+            }
+            renderResults(`${term.toUpperCase()} kanji`, records.map((item) => typeof item === "string" ? item : item.kanji).filter(Boolean));
+          } else {
+            const response = await searchMeaning(term);
+            if (token !== requestNumber) return;
+            const records = Array.isArray(response) ? response : [];
+            const matches = records.filter((record) => typeof record === "string" || record.kanji);
+            if (!matches.length) {
+              setNotice(`No kanji matched “${term}”. Try a broader English keyword.`, true);
+              return;
+            }
+            renderResults(`Matches for “${term}”`, matches.slice(0, 100), matches.length);
+          }
+        } catch (error) {
+          if (token !== requestNumber) return;
+          setNotice(`Search failed. KanjiAPI may be unavailable; check your connection and try again. ${error.message}`, true);
+        } finally {
+          if (token === requestNumber) setLoading(false);
+        }
+      }
+
+      async function showRandom() {
+        const token = ++requestNumber;
+        elements.detail.replaceChildren();
+        elements.results.replaceChildren();
+        setNotice("");
+        setLoading(true, "Finding a random kanji…");
+        try {
+          const character = await getRandomKanji();
+          if (!character) throw new Error("The random kanji response was empty.");
+          await showKanji(character, token);
+        } catch (error) {
+          if (token !== requestNumber) return;
+          setNotice(`Could not find a random kanji. Check your connection and try again. ${error.message}`, true);
+          setLoading(false);
+        }
+      }
+
+      function setTheme(theme) {
+        document.documentElement.dataset.theme = theme;
+        elements.themeButton.setAttribute("aria-label", theme === "dark" ? "Switch to light mode" : "Switch to dark mode");
+        elements.themeButton.title = theme === "dark" ? "Switch to light mode" : "Switch to dark mode";
+        writeStorage(THEME_KEY, theme);
+      }
+
+      elements.form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        runSearch(elements.query.value);
+      });
+      elements.randomButton.addEventListener("click", showRandom);
+      elements.themeButton.addEventListener("click", () => {
+        setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
+      });
+      elements.results.addEventListener("click", (event) => {
+        const button = event.target.closest("[data-kanji]");
+        if (button) showKanji(button.dataset.kanji);
+      });
+      elements.historyList.addEventListener("click", (event) => {
+        const button = event.target.closest("[data-kanji]");
+        if (button) showKanji(button.dataset.kanji);
+      });
+      elements.clearHistory.addEventListener("click", () => {
+        writeStorage(HISTORY_KEY, []);
+        renderHistory();
+      });
+      document.addEventListener("keydown", (event) => {
+        const editable = event.target instanceof HTMLElement && (
+          event.target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(event.target.tagName)
+        );
+        if (event.key.toLowerCase() === "r" && !editable && !event.metaKey && !event.ctrlKey && !event.altKey) {
+          event.preventDefault();
+          showRandom();
+        } else if (event.key === "Backspace" && !editable && !event.metaKey && !event.ctrlKey && !event.altKey) {
+          event.preventDefault();
+          elements.query.value = "";
+          elements.query.focus();
+          setNotice("");
+        }
+      });
+      window.addEventListener("kanji-network", (event) => {
+        if (event.detail.online) {
+          if (elements.notice.textContent.startsWith("Offline")) setNotice("");
+        } else if (event.detail.cached) {
+          setNotice("Offline — showing saved data.", false);
+        }
+      });
+      setTheme(readStorage(THEME_KEY, "dark") === "light" ? "light" : "dark");
+      renderHistory();
+    })();
+  </script>
+</body>
+</html>
