@@ -137,6 +137,7 @@
       .stat-value { font-size: 16px; }
       .stat-breakdown { gap: 8px; }
       .breakdown-row { gap: 4px; font-size: 10px; }
+      .shortcuts { display: none; }
     }
     @media (max-width: 430px) {
       .shell { width: min(100% - 18px, 720px); }
@@ -213,6 +214,7 @@
                       <option value="strokes">Stroke count</option>
                       <option value="jlpt">JLPT level</option>
                     </select>
+                    <label class="switch-option"><input id="reviewKanjiToggle" type="checkbox"> Pause to review kanji details</label>
                   </div>
                 </div>
                 <div class="setting-group">
@@ -399,6 +401,8 @@
       let sessionActive = true;
       let sessionPendingStart = false;
       let sessionClockStarted = false;
+      let sessionPausedAt = 0;
+      let pausedDuration = 0;
       let sessionTimer = null;
       let kanjiCache = loadJSON(STORAGE.kanji, {});
       if (!kanjiCache || typeof kanjiCache !== "object" || Array.isArray(kanjiCache)) kanjiCache = {};
@@ -497,8 +501,24 @@
       }
       function refreshTotalTime() {
         if (!sessionClockStarted) return;
-        $("#totalTimeStat").textContent = formatElapsed(performance.now() - sessionStartedAt);
+        const now = sessionPausedAt || performance.now();
+        $("#totalTimeStat").textContent = formatElapsed(now - sessionStartedAt - pausedDuration);
         if (sessionActive) sessionTimeFrame = requestAnimationFrame(refreshTotalTime);
+      }
+      function pauseSessionClock() {
+        if (!sessionClockStarted || sessionPausedAt) return;
+        sessionPausedAt = performance.now();
+        cancelAnimationFrame(sessionTimeFrame);
+        updateSessionStatus();
+      }
+      function resumeSessionClock() {
+        if (!sessionPausedAt) return;
+        const pauseLength = performance.now() - sessionPausedAt;
+        pausedDuration += pauseLength;
+        if (sessionMode === "timed") sessionDeadline += pauseLength;
+        sessionPausedAt = 0;
+        sessionTimeFrame = requestAnimationFrame(refreshTotalTime);
+        updateSessionStatus();
       }
       function updateStats() {
         $("#answeredStat").textContent = stats.total;
@@ -536,7 +556,9 @@
           status.textContent = `Session complete · ${stats.total} answered`;
           return;
         }
-        if (sessionMode === "questions") {
+        if (sessionPausedAt) {
+          status.textContent = "Paused · reviewing kanji details";
+        } else if (sessionMode === "questions") {
           status.textContent = `${questionsUsed} / ${sessionLimit} questions`;
         } else if (sessionMode === "timed") {
           const remaining = Math.max(0, Math.ceil((sessionDeadline - Date.now()) / 1000));
@@ -549,7 +571,7 @@
       }
       function finishSession(message, preserveFeedback = false) {
         if (!sessionActive) return;
-        const elapsed = sessionClockStarted ? performance.now() - sessionStartedAt : 0;
+        const elapsed = sessionClockStarted ? (sessionPausedAt || performance.now()) - sessionStartedAt - pausedDuration : 0;
         sessionActive = false;
         sessionPendingStart = false;
         questionRequest++;
@@ -557,6 +579,8 @@
         clearInterval(sessionTimer);
         cancelAnimationFrame(sessionTimeFrame);
         sessionClockStarted = false;
+        sessionPausedAt = 0;
+        pausedDuration = 0;
         $("#totalTimeStat").textContent = formatElapsed(elapsed);
         $("#nextButton").hidden = true;
         $("#answerInput").disabled = true;
@@ -596,6 +620,8 @@
         sessionActive = true;
         sessionPendingStart = false;
         sessionClockStarted = true;
+        sessionPausedAt = 0;
+        pausedDuration = 0;
         sessionStartedAt = performance.now();
         cancelAnimationFrame(sessionTimeFrame);
         $("#totalTimeStat").textContent = "00:00.000";
@@ -616,7 +642,7 @@
         updateSessionStatus();
         if (mode === "timed") {
           sessionTimer = window.setInterval(() => {
-            if (Date.now() >= sessionDeadline) finishSession("Time is up.");
+            if (!sessionPausedAt && Date.now() >= sessionDeadline) finishSession("Time is up.");
             else updateSessionStatus();
           }, 1000);
         }
@@ -625,6 +651,8 @@
       function startFreeClock() {
         if (sessionMode !== "free" || !sessionActive || sessionClockStarted) return;
         sessionClockStarted = true;
+        sessionPausedAt = 0;
+        pausedDuration = 0;
         sessionStartedAt = performance.now();
         sessionTimeFrame = requestAnimationFrame(refreshTotalTime);
         updateSessionStatus();
@@ -743,7 +771,7 @@
       }
       async function nextQuestion() {
         if (!sessionActive || sessionPendingStart) return;
-        if (sessionMode === "timed" && Date.now() >= sessionDeadline) {
+        if (sessionMode === "timed" && !sessionPausedAt && Date.now() >= sessionDeadline) {
           finishSession("Time is up.");
           return;
         }
@@ -774,7 +802,8 @@
       }
       function advanceQuestion() {
         if (!sessionActive || sessionPendingStart) return;
-        if (sessionMode === "timed" && Date.now() >= sessionDeadline) {
+        resumeSessionClock();
+        if (sessionMode === "timed" && !sessionPausedAt && Date.now() >= sessionDeadline) {
           finishSession("Time is up.");
           return;
         }
@@ -786,7 +815,7 @@
       }
       function skipQuestion() {
         if (!sessionActive || sessionPendingStart) return;
-        if (sessionMode === "timed" && Date.now() >= sessionDeadline) {
+        if (sessionMode === "timed" && !sessionPausedAt && Date.now() >= sessionDeadline) {
           finishSession("Time is up.");
           return;
         }
@@ -834,7 +863,7 @@
       }
       function checkAnswer(revealOnly = false) {
         if (!current || !sessionActive || sessionPendingStart) return;
-        if (!revealOnly && sessionMode === "timed" && Date.now() >= sessionDeadline) {
+        if (!revealOnly && sessionMode === "timed" && !sessionPausedAt && Date.now() >= sessionDeadline) {
           finishSession("Time is up.");
           return;
         }
@@ -861,13 +890,18 @@
           updateSessionStatus();
           $("#checkButton").disabled = correct;
           $("#checkButton").textContent = correct ? "Check" : "Continue";
-          $("#nextButton").hidden = correct;
+          const reviewKanji = current.kind === "kanji" && $("#reviewKanjiToggle").checked;
+          $("#nextButton").hidden = !reviewKanji;
+          $("#nextButton").textContent = correct ? "Next" : "Continue";
+          if (reviewKanji || (!correct && current.kind === "kanji")) pauseSessionClock();
         }
         const feedback = $("#feedback");
         feedback.className = `feedback${revealOnly ? "" : correct ? " correct" : " incorrect"}`;
         feedback.innerHTML = `<div class="feedback-title">${revealOnly ? "Answer" : correct ? "Correct!" : "Not quite — edit your answer, then press Enter to continue."}</div><div>${escapeHTML(displayAnswers(current))}</div>${explainAnswer(current)}`;
-        if (reachedQuestionLimit && correct) {
+        if (reachedQuestionLimit && correct && !(current.kind === "kanji" && $("#reviewKanjiToggle").checked)) {
           finishSession("Question goal reached.", true);
+        } else if (correct && current.kind === "kanji" && $("#reviewKanjiToggle").checked) {
+          $("#answerInput").disabled = true;
         } else if (correct) {
           const answeredQuestion = current;
           autoAdvanceTimer = window.setTimeout(() => {
@@ -898,6 +932,8 @@
         sessionActive = sessionMode === "free";
         sessionPendingStart = !sessionActive;
         sessionClockStarted = false;
+        sessionPausedAt = 0;
+        pausedDuration = 0;
         sessionStartedAt = 0;
         questionRequest++;
         questionNumber = 0;
