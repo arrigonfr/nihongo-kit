@@ -664,6 +664,11 @@
           showWarning("Select at least one character set. Hiragana has been enabled.");
           return ["hiragana"];
         }
+        const warning = $("#apiWarning");
+        if (warning.textContent === "Select at least one character set. Hiragana has been enabled.") {
+          warning.textContent = "";
+          warning.classList.remove("show");
+        }
         return types;
       }
       function randomKana(type) {
