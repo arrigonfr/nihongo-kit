@@ -214,6 +214,10 @@
                       <option value="strokes">Stroke count</option>
                       <option value="jlpt">JLPT level</option>
                     </select>
+                    <label class="switch-option" id="kanjiKanaScriptOption" hidden>
+                      <input id="requireKanaScriptMatch" type="checkbox" checked>
+                      Force required kana script
+                    </label>
                     <label class="switch-option"><input id="reviewKanjiToggle" type="checkbox"> Pause to review kanji details</label>
                   </div>
                 </div>
@@ -844,7 +848,18 @@
       }
       function isCorrect(userText, question) {
         const provided = userText.split(/[,，;；、/|]+/).map(normalize).filter(Boolean);
-        return provided.some((answer) => acceptedAnswers(question).some((variant) => normalize(variant) === answer));
+        const answers = acceptedAnswers(question);
+        const isKanjiReading = question.kind === "kanji" && question.questionType === "reading";
+        const acceptKanaScriptVariants = isKanjiReading && !$("#requireKanaScriptMatch").checked;
+        const romajiAnswers = isKanjiReading
+          ? [...(question.data.on_readings || []), ...(question.data.kun_readings || [])].map(romanize).map(normalize)
+          : [];
+        return provided.some((answer) => answers.some((variant) => {
+          const expected = normalize(variant);
+          const isKanaInput = /[\u3040-\u30ff]/u.test(answer);
+          return expected === answer || (isKanjiReading && !isKanaInput && romajiAnswers.includes(answer)) || (acceptKanaScriptVariants
+            && normalize(katakanaToHiragana(variant)) === normalize(katakanaToHiragana(answer)));
+        }));
       }
       function displayAnswers(question) {
         const answers = acceptedAnswers(question);
@@ -972,7 +987,13 @@
       $("#showStatsToggle").addEventListener("change", () => {
         $("#sessionStatsContent").hidden = !$("#showStatsToggle").checked;
       });
-      ["setHiragana","setKatakana","setKanji"].forEach((id) => $(`#${id}`).addEventListener("change", nextQuestion));
+      function updateKanjiKanaScriptOption() {
+        $("#kanjiKanaScriptOption").hidden = !$("#setKanji").checked;
+      }
+      ["setHiragana","setKatakana","setKanji"].forEach((id) => $(`#${id}`).addEventListener("change", () => {
+        updateKanjiKanaScriptOption();
+        nextQuestion();
+      }));
       $("#kanaDirection").addEventListener("change", () => { if (current && current.kind !== "kanji") nextQuestion(); });
       $("#kanjiQuestion").addEventListener("change", () => { if (current?.kind === "kanji") nextQuestion(); });
       document.addEventListener("keydown", (event) => {
@@ -992,6 +1013,7 @@
       updateStats();
       updateSessionControls();
       updateSessionStatus();
+      updateKanjiKanaScriptOption();
       useFont();
       nextQuestion();
     })();
