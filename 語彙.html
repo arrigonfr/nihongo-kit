@@ -53,6 +53,7 @@
     .number-input { border: 1px solid var(--line); background: var(--surface); }
     .limit-field[hidden] { display: none; }
     .font-preview { display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 58px; margin-top: 5px; padding: 5px; border: 1px solid var(--line); border-radius: 8px; background: var(--soft); }
+    .font-preview[hidden] { display: none; }
     .font-preview-sample { font: 17px/1.35 var(--preview-font,"Noto Sans JP"),sans-serif; text-align: center; white-space: nowrap; }
     .font-preview-name { color: var(--muted); font-size: 9px; text-align: center; }
     .button { min-height: 38px; padding: 8px 12px; border-radius: 8px; color: var(--muted); cursor: pointer; font-size: 12px; font-weight: 700; transition: .15s ease; }
@@ -73,6 +74,7 @@
     .failed-terms li + li { margin-top: 4px; }
     .failed-terms[hidden] { display: none; }
     .shortcut-hint { color: var(--muted); font-size: 10px; }
+    .shortcut-hint[hidden] { display: none; }
     .banner { display: none; margin: 14px 0 0; padding: 10px 12px; border: 1px solid #e4c98a; border-radius: 8px; background: #fff8e7; color: #72551b; font-size: 12px; line-height: 1.5; }
     :root[data-theme="dark"] .banner { background: #39311e; color: #ecd99f; border-color: #65542e; }
     .banner.visible { display: block; }
@@ -332,7 +334,7 @@
                 <option value="Sawarabi Mincho">Sawarabi Mincho</option><option value="M PLUS Rounded 1c">M PLUS Rounded 1c</option>
                 <option value="Zen Kurenaido">Zen Kurenaido</option>
               </select>
-              <span class="font-preview" aria-label="Selected font preview">
+              <span class="font-preview" id="fontPreview" aria-label="Selected font preview">
                 <span class="font-preview-sample" lang="ja">語彙の練習<br>ごいのれんしゅう<br>ゴイノレンシュウ</span>
                 <span class="font-preview-name" id="fontPreviewName">Noto Sans JP</span>
               </span>
@@ -342,7 +344,7 @@
           </details>
           <div class="quiz-options">
             <label class="auto-toggle"><input id="showExampleToggle" type="checkbox" checked><span>Show example and definition<small>Pause after correct answers; off shows details only for incorrect answers</small></span></label>
-            <span class="shortcut-hint">1–4 choose · Enter check/continue · Space skip · S reveal</span>
+            <span class="shortcut-hint" id="shortcutHint">1–4 choose · Enter check/continue · Space skip · S reveal</span>
           </div>
           <div class="banner" id="warning" role="status"></div>
           <div class="status" id="status" aria-live="polite"></div>
@@ -382,7 +384,7 @@
               <div class="prompt" id="prompt"></div>
               <div class="answer-options" id="options" role="group" aria-label="Choose the meaning"></div>
               <label class="sr-only" for="answerInput">Type the Japanese word</label>
-              <input class="answer-input" id="answerInput" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Type the Japanese word" hidden>
+              <input class="answer-input" id="answerInput" type="text" autocorrect="off" autocapitalize="off" autocomplete="off" spellcheck="false" placeholder="Type the Japanese word" hidden>
               <div class="feedback" id="feedback" role="status" hidden></div>
               <div class="meta" id="meta"></div>
               <div class="actions">
@@ -522,6 +524,7 @@
         document.documentElement.style.setProperty("--jp-font", `"${selected}"`);
         document.documentElement.style.setProperty("--preview-font", `"${selected}"`);
         $("#fontPreviewName").textContent = selected;
+        $("#fontPreview").hidden = state.font === "random";
       }
       function levelForRequest() {
         const selection = $("#levelSelect").value;
@@ -655,22 +658,16 @@
           ).join("");
           $("#checkButton").hidden = true;
         } else if (mode === "typing") {
-          const directionText = state.questionDirection === "to-romaji" ? "romaji" : "kana";
-          const sourceReading = state.questionDirection === "to-romaji"
-            ? item.furigana || item.word
-            : item.romaji || romanizeKana(item.furigana || item.word);
-          const sourceScript = state.questionDirection === "to-romaji" ? "kana" : "romaji";
-          $("#prompt").innerHTML = `Convert ${sourceScript} to ${directionText}. Meaning:<strong>${escapeHTML(item.meaning)}</strong>`;
-          $("#word").textContent = sourceReading || "？";
+          $("#prompt").innerHTML = `Type the Japanese vocabulary word for:<strong>${escapeHTML(item.meaning)}</strong>`;
+          $("#word").textContent = "？";
           $("#answerInput").hidden = false;
-          $("#answerInput").placeholder = `Type the ${directionText} reading`;
+          $("#answerInput").placeholder = "Type the Japanese word (kanji, kana, or romaji)";
         } else {
           const example = getExample(item);
-          const directionText = state.questionDirection === "to-romaji" ? "romaji" : "kana";
-          $("#prompt").textContent = `${example.generated ? "Meaning clue" : "Complete the sentence"} · type the ${directionText} reading`;
+          $("#prompt").textContent = `${example.generated ? "Meaning clue" : "Complete the sentence"} · type the missing Japanese word`;
           $("#prompt").insertAdjacentHTML("beforeend", `<strong class="japanese">${escapeHTML(example.clozeSentence)}</strong>`);
           $("#answerInput").hidden = false;
-          $("#answerInput").placeholder = `Type the ${directionText} reading`;
+          $("#answerInput").placeholder = "Type the missing word (kanji, kana, or romaji)";
         }
         markQuestionNumber();
         setStatus("");
@@ -845,7 +842,7 @@
         }
         const isCorrect = !revealed && (mode === "multiple"
           ? given === state.current.meaning
-          : acceptedAnswers(state.current, state.questionDirection).some((answer) => normalizedAnswer(answer) === normalizedAnswer(given)));
+          : acceptedAnswers(state.current).some((answer) => normalizedAnswer(answer) === normalizedAnswer(given)));
         state.checked = true;
         state.wrongAnswerPending = !revealed && !isCorrect && mode !== "multiple";
         if (!revealed) {
@@ -872,8 +869,8 @@
         const title = revealed ? "Answer revealed" : isCorrect ? "Correct!" : "Not quite";
         const japaneseAnswers = [state.current.word, state.current.furigana].filter(Boolean);
         const romajiAnswers = romajiVariants(state.current.romaji || romanizeKana(state.current.furigana));
-        const accepted = mode === "multiple" ? [] : acceptedAnswers(state.current, state.questionDirection);
-        const acceptedText = accepted.length ? `<br>Accepted ${state.questionDirection === "to-romaji" ? "romaji" : "kana"}: ${accepted.map(escapeHTML).join(", ")}` : "";
+        const accepted = mode === "multiple" ? [] : acceptedAnswers(state.current);
+        const acceptedText = accepted.length ? `<br>Accepted answers: ${accepted.map(escapeHTML).join(", ")}` : "";
         feedback.innerHTML = `<strong>${title}</strong>Answer: ${japaneseAnswers.map(escapeHTML).join(" / ")} — ${escapeHTML(state.current.meaning)}${romajiAnswers.length ? `<br>Romaji: ${romajiAnswers.map(escapeHTML).join(", ")}` : ""}${acceptedText}`;
         if (state.wrongAnswerPending && !$("#answerInput").hidden) {
           $("#answerInput").value = "";
@@ -956,6 +953,10 @@
         $("#questionLimitField").hidden = type !== "questions";
         $("#timeLimitField").hidden = type !== "time";
       }
+      function updateShortcutHint() {
+        const multipleChoice = $("#modeSelect").value === "multiple";
+        $("#shortcutHint").hidden = !multipleChoice;
+      }
       function startQuiz() {
         if (state.loading) return;
         clearInterval(state.session.clockTimer);
@@ -1017,6 +1018,7 @@
         catch (error) { console.warn("Could not save kana direction preference.", error); setStatus("Could not save kana direction preference.", true); }
       });
       $("#sessionType").addEventListener("change", updateSessionTypeFields);
+      $("#modeSelect").addEventListener("change", updateShortcutHint);
       $("#startButton").addEventListener("click", startQuiz);
       $("#restartButton").addEventListener("click", startQuiz);
       $("#checkButton").addEventListener("click", () => checkAnswer(false));
@@ -1075,6 +1077,7 @@
       if (theme !== "dark" && theme !== "light") theme = "dark";
       setTheme(theme);
       updateSessionTypeFields();
+      updateShortcutHint();
       useFont();
       renderStats();
     })();

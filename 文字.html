@@ -67,6 +67,8 @@
     .setting-group { min-width: 0; padding: 10px 11px; border: 1px solid var(--line); border-radius: 10px; background: color-mix(in srgb, var(--soft) 42%, var(--card)); }
     .setting-title { margin: 0 0 9px; color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .11em; text-transform: uppercase; }
     .check-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 8px; }
+    .kanji-options { display: grid; gap: 8px; margin-top: 12px; padding-top: 11px; border-top: 1px solid var(--line); }
+    .kanji-options .check-option { line-height: 1.35; }
     .check-option, .switch-option { display: flex; gap: 7px; align-items: center; color: var(--ink); font-size: 12px; cursor: pointer; }
     input[type="checkbox"] { accent-color: var(--accent); }
     .stack-options { display: grid; grid-template-columns: minmax(0, 1fr); gap: 7px; min-width: 0; }
@@ -112,8 +114,6 @@
     .stat-breakdown { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 8px; }
     .breakdown-row { display: flex; justify-content: space-between; gap: 9px; color: var(--muted); font-size: 12px; }
     .breakdown-row strong { color: var(--ink); }
-    .shortcuts { margin-top: 8px; color: var(--muted); font-size: 10px; line-height: 1.7; }
-    .shortcuts kbd { padding: 2px 5px; border: 1px solid var(--line); border-radius: 4px; background: var(--soft); font: inherit; color: var(--ink); }
     footer { padding-top: 12px; text-align: center; color: var(--muted); font-size: 10px; }
     .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
     .session-results { margin-top: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--accent-soft); font-size: 13px; line-height: 1.5; }
@@ -137,7 +137,6 @@
       .stat-value { font-size: 16px; }
       .stat-breakdown { gap: 8px; }
       .breakdown-row { gap: 4px; font-size: 10px; }
-      .shortcuts { display: none; }
     }
     @media (max-width: 430px) {
       .shell { width: min(100% - 18px, 720px); }
@@ -170,11 +169,16 @@
             <div class="settings-body">
               <div class="settings-column">
                 <div class="setting-group">
-                  <h2 class="setting-title">Character sets</h2>
+                  <h2 class="setting-title">Practice sets</h2>
                   <div class="check-grid">
                     <label class="check-option"><input id="setHiragana" type="checkbox" checked> Hiragana</label>
                     <label class="check-option"><input id="setKatakana" type="checkbox"> Katakana</label>
-                    <label class="check-option"><input id="setKanji" type="checkbox"> Kanji</label>
+                    <label class="check-option"><input id="setKanjiMeaning" type="checkbox"> Kanji Meaning</label>
+                    <label class="check-option"><input id="setKanjiReading" type="checkbox"> Kanji Reading</label>
+                  </div>
+                  <div class="kanji-options" id="kanjiOptions" hidden>
+                    <label class="switch-option" id="kanjiKanaScriptOption" hidden><input id="requireKanaScriptMatch" type="checkbox" checked> Force required kana script</label>
+                    <label class="switch-option" id="reviewKanjiOption" hidden><input id="reviewKanjiToggle" type="checkbox"> Pause to review kanji details</label>
                   </div>
                 </div>
                 <div class="setting-group">
@@ -200,25 +204,25 @@
                 <div class="setting-group">
                   <h2 class="setting-title">Question</h2>
                   <div class="stack-options">
-                    <label class="check-option" for="kanaDirection">Kana direction</label>
+                    <label class="check-option" id="kanaDirectionLabel" for="kanaDirection">Kana direction</label>
                     <select id="kanaDirection" aria-label="Kana question direction">
                       <option value="to-romaji">Kana → romaji</option>
                       <option value="to-kana">Romaji → kana</option>
                       <option value="random">Random direction</option>
                     </select>
-                    <label class="check-option" for="kanjiQuestion">Kanji question</label>
-                    <select id="kanjiQuestion" aria-label="Kanji question type">
-                      <option value="random">Random</option>
-                      <option value="meaning">Meaning (English / Spanish)</option>
-                      <option value="reading">On-yomi / kun-yomi</option>
-                      <option value="strokes">Stroke count</option>
-                      <option value="jlpt">JLPT level</option>
+                    <label class="check-option" id="meaningDirectionLabel" for="meaningDirection" hidden>Meaning direction</label>
+                    <select id="meaningDirection" aria-label="Kanji meaning direction" hidden>
+                      <option value="meaning-forward">Kanji → Romaji</option>
+                      <option value="meaning-reverse">Romaji → Kanji</option>
+                      <option value="meaning-random">Random</option>
                     </select>
-                    <label class="switch-option" id="kanjiKanaScriptOption" hidden>
-                      <input id="requireKanaScriptMatch" type="checkbox" checked>
-                      Force required kana script
-                    </label>
-                    <label class="switch-option"><input id="reviewKanjiToggle" type="checkbox"> Pause to review kanji details</label>
+                    <label class="check-option" id="readingDirectionLabel" for="readingDirection" hidden>Reading direction</label>
+                    <select id="readingDirection" aria-label="Kanji reading direction" hidden>
+                      <option value="reading-romaji">Romaji only</option>
+                      <option value="reading-hiragana">Romaji - hiragana</option>
+                      <option value="reading-katakana">Romaji - katakana</option>
+                      <option value="reading-any-kana">Romaji - any kana</option>
+                    </select>
                   </div>
                 </div>
                 <div class="setting-group">
@@ -271,7 +275,7 @@
             <form id="answerForm" autocomplete="off">
               <label class="sr-only" for="answerInput">Your answer</label>
               <div class="answer-row">
-                <input class="answer-input" id="answerInput" type="text" placeholder="Type your answer…" autocapitalize="off" spellcheck="false">
+                <input class="answer-input" id="answerInput" type="text" placeholder="Type your answer…" autocorrect="off" autocapitalize="off" autocomplete="off" spellcheck="false">
                 <button class="button primary" id="checkButton" type="submit">Check</button>
               </div>
             </form>
@@ -283,7 +287,6 @@
             </div>
             <div class="feedback" id="feedback" aria-live="polite"></div>
             <div class="session-results" id="sessionResults" hidden aria-live="polite"></div>
-            <div class="shortcuts"><kbd>Enter</kbd> check / continue · <kbd>Space</kbd> skip · <kbd>S</kbd> show answer</div>
           </section>
         </div>
       </div>
@@ -297,9 +300,11 @@
       const $ = (selector) => document.querySelector(selector);
       const STORAGE = {
         theme: "kquiz-theme-v1",
-        kanji: "kquiz-kanji-cache-v1"
+        kanji: "kquiz-kanji-cache-v1",
+        kanjiPool: "kquiz-kanji-pool-v1"
       };
       const API = "https://kanjiapi.dev/v1/kanji/";
+      const ALL_KANJI_API = `${API}all`;
       const FONTS = ["Noto Sans JP", "Sawarabi Mincho", "M PLUS Rounded 1c", "Zen Kurenaido"];
       const kanaEntries = [];
       const addKanaRow = (type, hira, kata, sounds) => {
@@ -377,19 +382,21 @@
         "猫": { meanings:["cat"], spanish:["gato"], on_readings:["ビョウ"], kun_readings:["ねこ"], stroke_count:11,jlpt:3 },
         "空": { meanings:["sky","空","empty"], spanish:["cielo","vacío"], on_readings:["クウ"], kun_readings:["そら","あ"], stroke_count:8,jlpt:4 }
       };
-      const kanjiPool = ["日","月","人","大","小","山","川","水","火","木","金","土","学","生","食","見","行","国","年","本","中","友","愛","猫","空","天","気","雨","花","先","生","女","男","子","手","目","口","耳","車","電","校","時","間","道","名","高","新","古","白","黒","青","赤","円","何","今","前","後","上","下","左","右","東","西","南","北","話","聞","読","書","買","来","帰","入","出","立","休"];
-      const spanishKanjiMeanings = {
-        "天":["cielo"],"気":["energía","ánimo"],"雨":["lluvia"],"花":["flor"],"先":["antes","previo"],
-        "女":["mujer"],"男":["hombre"],"子":["niño","hijo"],"手":["mano"],"目":["ojo"],"口":["boca"],
-        "耳":["oreja"],"車":["coche","vehículo"],"電":["electricidad"],"校":["escuela"],"時":["tiempo","hora"],
-        "間":["intervalo","entre"],"道":["camino"],"名":["nombre"],"高":["alto"],"新":["nuevo"],"古":["antiguo","viejo"],
-        "白":["blanco"],"黒":["negro"],"青":["azul"],"赤":["rojo"],"円":["círculo","yen"],"何":["qué"],"今":["ahora"],
-        "前":["antes","frente"],"後":["después","detrás"],"上":["arriba","encima"],"下":["abajo","debajo"],
-        "左":["izquierda"],"右":["derecha"],"東":["este"],"西":["oeste"],"南":["sur"],"北":["norte"],
-        "話":["hablar","historia"],"聞":["escuchar","oír"],"読":["leer"],"書":["escribir"],"買":["comprar"],
-        "来":["venir"],"帰":["regresar","volver"],"入":["entrar"],"出":["salir"],"立":["levantarse","estar de pie"],
-        "休":["descansar"]
-      };
+      const fallbackKanjiPool = ["日","月","人","大","小","山","川","水","火","木","金","土","学","生","食","見","行","国","年","本","中","友","愛","猫","空","天","気","雨","花","先","生","女","男","子","手","目","口","耳","車","電","校","時","間","道","名","高","新","古","白","黒","青","赤","円","何","今","前","後","上","下","左","右","東","西","南","北","話","聞","読","書","買","来","帰","入","出","立","休"];
+      function isKanjiCandidate(value) {
+        if (typeof value !== "string" || [...value].length !== 1) return false;
+        const code = value.codePointAt(0);
+        return !((code >= 0x2e80 && code <= 0x2eff)
+          || (code >= 0x2f00 && code <= 0x2fdf)
+          || (code >= 0x2ff0 && code <= 0x2fff)
+          || (code >= 0x31c0 && code <= 0x31ef)
+          || (code >= 0x2f800 && code <= 0x2fa1f)
+          || (code >= 0x1f200 && code <= 0x1f2ff));
+      }
+      let kanjiPool = loadJSON(STORAGE.kanjiPool, []);
+      if (Array.isArray(kanjiPool)) kanjiPool = [...new Set(kanjiPool.filter(isKanjiCandidate))];
+      if (!Array.isArray(kanjiPool) || !kanjiPool.length) kanjiPool = null;
+      let kanjiPoolRequest = null;
       const stats = { total: 0, correct: 0, hiragana: { total:0, correct:0 }, katakana: { total:0, correct:0 }, kanji: { total:0, correct:0 } };
       let totalAnswerTimeMs = 0;
       let questionStartedAt = performance.now();
@@ -442,7 +449,8 @@
         return [
           $("#setHiragana").checked && "hiragana",
           $("#setKatakana").checked && "katakana",
-          $("#setKanji").checked && "kanji"
+          $("#setKanjiMeaning").checked && "kanji-meaning",
+          $("#setKanjiReading").checked && "kanji-reading"
         ].filter(Boolean);
       }
       function normalize(text) {
@@ -687,32 +695,30 @@
         };
       }
       function kanjiAnswers(data, questionType, character) {
-        if (questionType === "meaning") return [...(data.meanings || []), ...(data.spanish || []), ...(spanishKanjiMeanings[character] || [])];
+        if (questionType === "meaning") return data.meanings || [];
         if (questionType === "reading") {
           const readings = [...(data.on_readings || []), ...(data.kun_readings || [])];
           return [...new Set(readings.flatMap((reading) => [reading, romanize(reading)]).filter(Boolean))];
         }
-        if (questionType === "strokes") return data.stroke_count == null ? [] : [String(data.stroke_count)];
-        if (questionType === "jlpt") return data.jlpt == null ? ["unknown","not listed","n/a","na","none"] : [`n${data.jlpt}`, String(data.jlpt)];
         return [character];
       }
       function kanjiQuestionType(data) {
-        const requested = $("#kanjiQuestion").value;
-        const available = ["meaning","reading","strokes","jlpt"].filter((type) => {
+        const available = [
+          $("#setKanjiMeaning").checked && "meaning",
+          $("#setKanjiReading").checked && "reading"
+        ].filter((type) => type && (() => {
           if (type === "meaning") return (data.meanings || []).length > 0;
           if (type === "reading") return (data.on_readings || []).length + (data.kun_readings || []).length > 0;
-          if (type === "strokes") return data.stroke_count != null;
           return true;
-        });
-        return requested === "random" || !available.includes(requested) ? randomItem(available) : requested;
+        })());
+        return randomItem(available);
       }
       function questionPrompt(question) {
         if (question.kind === "kanji") {
+          if (question.questionType === "meaning" && question.direction === "meaning-reverse") return "Type the kanji for this English meaning";
           return {
-            meaning: "Type an English or Spanish meaning",
+            meaning: "Type an English meaning",
             reading: "Type an on-yomi or kun-yomi reading (kana or romaji)",
-            strokes: "How many strokes?",
-            jlpt: "What is its JLPT level? (for example, N5)"
           }[question.questionType];
         }
         return question.direction === "to-kana" ? "Type the kana for this romaji" : "Type the romaji reading";
@@ -732,7 +738,10 @@
         $("#glyph").setAttribute("lang", question.kind === "kanji" || question.direction !== "to-kana" ? "ja" : "en");
         $("#promptText").textContent = questionPrompt(question);
         $("#answerInput").value = "";
-        $("#answerInput").placeholder = question.kind === "kanji" && question.questionType === "strokes" ? "Number" : "Type your answer…";
+        $("#answerInput").type = "text";
+        $("#answerInput").inputMode = "text";
+        $("#answerInput").hidden = false;
+        $("#answerInput").placeholder = "Type your answer…";
         $("#feedback").className = "feedback";
         $("#feedback").innerHTML = "";
         $("#answerInput").disabled = !sessionActive;
@@ -774,9 +783,35 @@
         } catch (error) {
           console.warn("KanjiAPI unavailable; using the built-in list:", error);
           apiUnavailable = true;
-          showWarning("KanjiAPI is unavailable. Quiz will continue using the built-in common-kanji list; kanji outside that list cannot be loaded until the API is reachable.");
+          showWarning(`KanjiAPI request failed${error?.message ? ` (${error.message})` : ""}. The quiz is using its built-in common-kanji data instead; kanji outside that list are unavailable until the API can be reached.`);
           return fallbackKanji[character] || null;
         } finally { kanjiInFlight.delete(character); }
+      }
+      async function getKanjiPool() {
+        if (kanjiPool) return kanjiPool;
+        if (!kanjiPoolRequest) {
+          kanjiPoolRequest = fetch(ALL_KANJI_API, { headers: { Accept: "application/json" } })
+            .then((response) => {
+              if (!response.ok) throw new Error(`KanjiAPI returned ${response.status}`);
+              return response.json();
+            })
+            .then((data) => {
+              if (!Array.isArray(data) || !data.length || data.some((kanji) => typeof kanji !== "string")) {
+                throw new Error("KanjiAPI returned an invalid kanji list");
+              }
+              kanjiPool = [...new Set(data.filter(isKanjiCandidate))];
+              if (!kanjiPool.length) throw new Error("KanjiAPI returned no usable kanji after filtering radicals");
+              saveJSON(STORAGE.kanjiPool, kanjiPool);
+              return kanjiPool;
+            })
+            .catch((error) => {
+              console.warn("Could not load the KanjiAPI character list; using the built-in candidate list:", error);
+              showWarning(`KanjiAPI character list request failed${error?.message ? ` (${error.message})` : ""}. The quiz is selecting from its built-in common-kanji candidate list instead.`);
+              kanjiPool = fallbackKanjiPool;
+              return kanjiPool;
+            });
+        }
+        return kanjiPoolRequest;
       }
       async function nextQuestion() {
         if (!sessionActive || sessionPendingStart) return;
@@ -787,14 +822,17 @@
         const requestId = ++questionRequest;
         const types = availableTypes();
         const type = randomItem(types);
-        if (type !== "kanji") { renderQuestion(randomKana(type)); return; }
-        const character = randomItem(kanjiPool);
+        if (type === "hiragana" || type === "katakana") { renderQuestion(randomKana(type)); return; }
         $("#questionCount").textContent = "Loading kanji…";
-        $("#glyph").textContent = character;
+        $("#glyph").textContent = "漢";
         $("#promptText").textContent = "Fetching kanji details";
         $("#answerInput").disabled = true;
         $("#checkButton").disabled = true;
         $("#showButton").disabled = true;
+        const pool = await getKanjiPool();
+        if (requestId !== questionRequest) return;
+        const character = randomItem(pool);
+        $("#glyph").textContent = character;
         const data = await getKanji(character);
         if (requestId !== questionRequest) return;
         if (!data) {
@@ -807,7 +845,18 @@
           return;
         }
         const questionType = kanjiQuestionType(data);
-        renderQuestion({ kind:"kanji", character, display:character, data, questionType, answers:kanjiAnswers(data,questionType,character) });
+        const directionChoice = questionType === "meaning" ? $("#meaningDirection").value : $("#readingDirection").value;
+        const direction = directionChoice === "meaning-random"
+          ? (Math.random() < .5 ? "meaning-forward" : "meaning-reverse")
+          : directionChoice;
+        const reverseMeaning = questionType === "meaning" && direction === "meaning-reverse";
+        const meanings = kanjiAnswers(data, questionType, character);
+        const meaning = reverseMeaning ? randomItem(meanings) : null;
+        renderQuestion({
+          kind:"kanji", character, display: reverseMeaning ? meaning : character, data,
+          questionType, direction, meaning,
+          answers: reverseMeaning ? [character] : meanings
+        });
       }
       function advanceQuestion() {
         if (!sessionActive || sessionPendingStart) return;
@@ -849,25 +898,41 @@
       function isCorrect(userText, question) {
         const provided = userText.split(/[,，;；、/|]+/).map(normalize).filter(Boolean);
         const answers = acceptedAnswers(question);
+        if (question.kind === "kanji" && question.questionType === "meaning" && question.direction === "meaning-reverse") {
+          return provided.includes(normalize(question.character));
+        }
         const isKanjiReading = question.kind === "kanji" && question.questionType === "reading";
         const acceptKanaScriptVariants = isKanjiReading && !$("#requireKanaScriptMatch").checked;
+        const direction = question.direction || $("#readingDirection").value;
+        const rawReadings = isKanjiReading
+          ? [...(question.data.on_readings || []), ...(question.data.kun_readings || [])]
+          : [];
+        const directedKana = direction === "reading-hiragana" ? rawReadings.map(katakanaToHiragana)
+          : direction === "reading-katakana" ? rawReadings.map((reading) => [...reading].map((char) => {
+            const code = char.codePointAt(0);
+            return code >= 0x3041 && code <= 0x3096 ? String.fromCodePoint(code + 0x60) : char;
+          }).join(""))
+          : direction === "reading-any-kana" ? [...rawReadings, ...rawReadings.map(katakanaToHiragana)] : [];
         const romajiAnswers = isKanjiReading
-          ? [...(question.data.on_readings || []), ...(question.data.kun_readings || [])].map(romanize).map(normalize)
+          ? rawReadings.map(romanize).map(normalize)
           : [];
         return provided.some((answer) => answers.some((variant) => {
           const expected = normalize(variant);
           const isKanaInput = /[\u3040-\u30ff]/u.test(answer);
+          if (isKanjiReading && direction.startsWith("reading-")) {
+            if (direction === "reading-hiragana" || direction === "reading-katakana" || direction === "reading-any-kana") {
+              return directedKana.some((reading) => normalize(reading) === answer);
+            }
+            return romajiAnswers.includes(answer);
+          }
           return expected === answer || (isKanjiReading && !isKanaInput && romajiAnswers.includes(answer)) || (acceptKanaScriptVariants
             && normalize(katakanaToHiragana(variant)) === normalize(katakanaToHiragana(answer)));
         }));
       }
       function displayAnswers(question) {
         const answers = acceptedAnswers(question);
-        if (question.kind === "kanji" && question.questionType === "jlpt" && question.data.jlpt == null) return "Not listed by the API (answer: unknown, not listed, or N/A).";
-        if (question.kind === "kanji" && question.questionType === "strokes") return `${answers[0]} stroke${answers[0] === "1" ? "" : "s"}`;
-        if (question.kind === "kanji" && question.questionType === "meaning") return answers.join(" · ") || "No meanings available";
+        if (question.kind === "kanji" && question.questionType === "meaning") return question.direction === "meaning-reverse" ? question.character : answers.join(" · ") || "No meanings available";
         if (question.kind === "kanji" && question.questionType === "reading") return answers.join(" · ") || "No readings available";
-        if (question.kind === "kanji" && question.questionType === "jlpt") return answers[0]?.toUpperCase() || "Not listed";
         return answers.join(" · ");
       }
       function explainAnswer(question) {
@@ -892,7 +957,10 @@
           return;
         }
         const input = $("#answerInput").value.trim();
-        if (!revealOnly && !input) { $("#answerInput").focus({ preventScroll: true }); return; }
+        if (!revealOnly && !input) {
+          $("#answerInput").focus({ preventScroll: true });
+          return;
+        }
         if (!revealOnly) startFreeClock();
         const correct = !revealOnly && isCorrect(input, current);
         let reachedQuestionLimit = false;
@@ -988,22 +1056,40 @@
         $("#sessionStatsContent").hidden = !$("#showStatsToggle").checked;
       });
       function updateKanjiKanaScriptOption() {
-        $("#kanjiKanaScriptOption").hidden = !$("#setKanji").checked;
+        const meaningMode = $("#setKanjiMeaning").checked;
+        const readingMode = $("#setKanjiReading").checked;
+        const kanjiEnabled = meaningMode || readingMode;
+        $("#kanjiOptions").hidden = !kanjiEnabled;
+        $("#reviewKanjiOption").hidden = !kanjiEnabled;
+        $("#kanjiKanaScriptOption").hidden = !readingMode;
+        const kanaMode = !kanjiEnabled;
+        $("#kanaDirectionLabel").hidden = !kanaMode;
+        $("#kanaDirection").hidden = !kanaMode;
+        $("#meaningDirectionLabel").hidden = !meaningMode;
+        $("#meaningDirection").hidden = !meaningMode;
+        $("#readingDirectionLabel").hidden = !readingMode;
+        $("#readingDirection").hidden = !readingMode;
       }
-      ["setHiragana","setKatakana","setKanji"].forEach((id) => $(`#${id}`).addEventListener("change", () => {
+      ["setHiragana","setKatakana","setKanjiMeaning","setKanjiReading"].forEach((id) => $(`#${id}`).addEventListener("change", (event) => {
+        const kanjiSet = id === "setKanjiMeaning" || id === "setKanjiReading";
+        if (kanjiSet && event.target.checked) {
+          $("#setHiragana").checked = false;
+          $("#setKatakana").checked = false;
+        } else if (!kanjiSet && event.target.checked) {
+          $("#setKanjiMeaning").checked = false;
+          $("#setKanjiReading").checked = false;
+        }
         updateKanjiKanaScriptOption();
         nextQuestion();
       }));
-      $("#kanaDirection").addEventListener("change", () => { if (current && current.kind !== "kanji") nextQuestion(); });
-      $("#kanjiQuestion").addEventListener("change", () => { if (current?.kind === "kanji") nextQuestion(); });
+      $("#kanaDirection").addEventListener("change", () => { if (current) nextQuestion(); });
+      $("#meaningDirection").addEventListener("change", () => { if (current) nextQuestion(); });
+      $("#readingDirection").addEventListener("change", () => { if (current) nextQuestion(); });
       document.addEventListener("keydown", (event) => {
         if (event.key === "Enter" && event.target !== $("#answerForm")) {
           if (event.target === $("#answerInput")) return;
           if (!$("#checkButton").disabled) { event.preventDefault(); checkAnswer(false); }
         }
-        if (event.target.matches("input, select, textarea, button")) return;
-        if (event.code === "Space") { event.preventDefault(); skipQuestion(); }
-        if (event.key.toLowerCase() === "s" && sessionActive) checkAnswer(true);
       });
 
       if (window.matchMedia("(max-width: 760px)").matches) $("#settingsPanel").open = false;

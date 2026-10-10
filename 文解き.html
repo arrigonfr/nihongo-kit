@@ -244,6 +244,16 @@
         let part = "";
         let index = 0;
         while (index < value.length) {
+          const ending = ENDINGS.find((candidate) => value.startsWith(candidate, index));
+          if (ending) {
+            if (part) {
+              pieces.push(...splitEndings(part));
+              part = "";
+            }
+            pieces.push(ending);
+            index += ending.length;
+            continue;
+          }
           const particle = PARTICLES.find((candidate) => value.startsWith(candidate, index));
           if (particle && part) {
             pieces.push(...splitEndings(part));

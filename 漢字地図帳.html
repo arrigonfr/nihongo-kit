@@ -90,7 +90,12 @@
     .detail { margin-top: 13px; overflow: hidden; }
     .detail:empty { display: none; }
     .detail-top { display: grid; grid-template-columns: minmax(130px, .7fr) 1.3fr; gap: 15px; padding: 19px; border-bottom: 1px solid var(--line); }
-    .hero-kanji { display: grid; min-height: 150px; place-items: center; border-radius: 12px; background: var(--soft); font: clamp(82px, 14vw, 118px)/1 "Yu Mincho", "Hiragino Mincho ProN", "Noto Serif CJK JP", serif; }
+    .hero-kanji { display: flex; width: 100%; min-width: 0; min-height: 150px; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 8px; border: 1px solid transparent; border-radius: 12px; background: var(--soft); color: var(--ink); cursor: pointer; }
+    .hero-kanji:hover { border-color: var(--accent); }
+    .hero-kanji:disabled { cursor: wait; }
+    .hero-kanji-character { font: clamp(82px, 14vw, 118px)/1 "Yu Mincho", "Hiragino Mincho ProN", "Noto Serif CJK JP", serif; }
+    .hero-strokes { display: block; width: min(100%, 130px); height: auto; overflow: visible; }
+    .stroke-caption { color: var(--muted); font-size: 10px; line-height: 1.3; text-align: center; }
     .hero-info { align-self: center; min-width: 0; }
     .hero-title { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 6px; }
     .hero-title h2 { margin: 0; font: 500 23px/1.2 Georgia, "Times New Roman", serif; }
@@ -186,7 +191,7 @@
           </section>
         </aside>
       </div>
-      <footer>Data from <a href="https://kanjiapi.dev" target="_blank" rel="noreferrer">kanjiapi.dev</a></footer>
+      <footer>Data from <a href="https://kanjiapi.dev" target="_blank" rel="noreferrer">kanjiapi.dev</a> · Stroke order diagrams from <a href="https://kanjivg.tagaini.net" target="_blank" rel="noreferrer">KanjiVG</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/" target="_blank" rel="noreferrer">CC BY-SA 3.0</a>). Fallback SVGs from <a href="https://github.com/parsimonhi/animCJK" target="_blank" rel="noreferrer">AnimCJK</a> (Arphic Public License; <a href="https://github.com/parsimonhi/animCJK/blob/ec5e17cca76c87587790bcbce5ea0b4d4fb753d6/licenses/APL/english/ARPHICPL.TXT" target="_blank" rel="noreferrer">license</a>).</footer>
     </main>
   </div>
   <script>
@@ -196,6 +201,8 @@
       const HISTORY_KEY = "nihon:kanji-atlas:history";
       const THEME_KEY = "nihon:kanji-atlas:theme-v2";
       const CACHE_PREFIX = "nihon:kanji-atlas:cache:";
+      const STROKE_CACHE_PREFIX = "nihon:kanji-atlas:stroke:";
+      const ANIMCJK_CACHE_PREFIX = "nihon:kanji-atlas:stroke-animcjk:";
       const elements = {
         query: document.getElementById("query"),
         form: document.getElementById("searchForm"),
@@ -394,7 +401,10 @@
         detail.className = "detail-inner";
         detail.innerHTML = `
           <div class="detail-top">
-            <div class="hero-kanji" aria-label="Kanji ${escapeHtml(character)}">${escapeHtml(character)}</div>
+            <button class="hero-kanji" id="strokeOrderButton" type="button" aria-label="Show stroke order for ${escapeHtml(character)}" title="Click to see stroke order">
+              <span class="hero-kanji-character">${escapeHtml(character)}</span>
+              <span class="stroke-caption" aria-live="polite">Click to see stroke order</span>
+            </button>
             <div class="hero-info">
               <div class="hero-title"><h2>${escapeHtml(character)}</h2><span class="tag">${escapeHtml(jlpt)}</span></div>
               <p class="meanings">${escapeHtml(meanings(record) || "No English meanings listed.")}</p>
@@ -411,6 +421,9 @@
             ${textBlock("Example compounds", compoundMarkup, "compounds")}
           </div>`;
         elements.detail.replaceChildren(detail);
+        document.getElementById("strokeOrderButton").addEventListener("click", (event) => {
+          animateStrokeOrder(event.currentTarget, character);
+        });
         document.getElementById("copyKanji").addEventListener("click", async (event) => {
           try {
             await navigator.clipboard.writeText(character);
@@ -420,6 +433,189 @@
             setNotice("Clipboard access is unavailable. Select and copy the kanji directly.", true);
           }
         });
+      }
+
+      async function getStrokeSvg(url, cacheKey) {
+        let cached = null;
+        try {
+          cached = localStorage.getItem(cacheKey);
+        } catch (error) {
+          console.warn("Could not read cached stroke order data.", error);
+        }
+        try {
+          const response = await fetch(url);
+          if (!response.ok) {
+            const error = new Error(`Stroke SVG source returned HTTP ${response.status}.`);
+            error.status = response.status;
+            throw error;
+          }
+          const svg = await response.text();
+          try {
+            localStorage.setItem(cacheKey, svg);
+          } catch (error) {
+            console.warn("Could not cache stroke order data.", error);
+          }
+          return svg;
+        } catch (error) {
+          if (cached) return cached;
+          throw error;
+        }
+      }
+
+      function parseStrokeData(svgText) {
+        const source = new DOMParser().parseFromString(svgText, "image/svg+xml");
+        if (source.querySelector("parsererror") || source.documentElement.localName !== "svg") {
+          throw new Error("The SVG could not be read.");
+        }
+        const paths = [...source.querySelectorAll('path[id]')]
+          .map((path) => ({ id: path.id, d: path.getAttribute("d") }))
+          .filter((path) => /-s\d+$/.test(path.id) && path.d)
+          .sort((a, b) => Number(a.id.match(/-s(\d+)$/)[1]) - Number(b.id.match(/-s(\d+)$/)[1]));
+        return { viewBox: source.documentElement.getAttribute("viewBox") || "0 0 109 109", paths };
+      }
+
+      async function getStrokeData(character) {
+        const codePoint = character.codePointAt(0);
+        const kanjiCode = codePoint.toString(16).padStart(5, "0");
+        let kanjiVGError;
+        try {
+          const svgText = await getStrokeSvg(
+            `https://raw.githubusercontent.com/KanjiVG/kanjivg/master/kanji/${kanjiCode}.svg`,
+            STROKE_CACHE_PREFIX + character
+          );
+          const data = parseStrokeData(svgText);
+          if (data.paths.length) return { source: "kanjivg", ...data };
+          kanjiVGError = new Error("KanjiVG did not provide stroke paths for this kanji.");
+        } catch (error) {
+          kanjiVGError = error;
+        }
+
+        const decimalCode = String(codePoint);
+        const animUrl = `https://raw.githubusercontent.com/parsimonhi/animCJK/master/svgsJa/${decimalCode}.svg`;
+        try {
+          const svgText = await getStrokeSvg(animUrl, ANIMCJK_CACHE_PREFIX + character);
+          const source = new DOMParser().parseFromString(svgText, "image/svg+xml");
+          const strokes = [...source.querySelectorAll("path[id]")]
+            .filter((path) => /^z\d+d\d+$/.test(path.id) && path.getAttribute("d"));
+          if (source.querySelector("parsererror") || source.documentElement.localName !== "svg" || !strokes.length) {
+            throw new Error("AnimCJK did not provide a usable SVG diagram.");
+          }
+          return { source: "animcjk", svgText };
+        } catch (error) {
+          throw new Error(`KanjiVG and AnimCJK could not provide a stroke diagram. ${kanjiVGError.message} ${error.message}`);
+        }
+      }
+
+      function buildNumberedDiagram(svgText, character, button) {
+        const source = new DOMParser().parseFromString(svgText, "image/svg+xml");
+        const sourceRoot = source.documentElement;
+        const sourcePaths = [...source.querySelectorAll("path[id]")]
+          .filter((path) => /^z\d+d\d+$/.test(path.id) && path.getAttribute("d"))
+          .sort((a, b) => Number(a.id.match(/d(\d+)$/)[1]) - Number(b.id.match(/d(\d+)$/)[1]));
+        if (!sourcePaths.length) throw new Error("AnimCJK did not provide numbered stroke shapes.");
+
+        const namespace = "http://www.w3.org/2000/svg";
+        const svg = document.createElementNS(namespace, "svg");
+        svg.setAttribute("class", "hero-strokes");
+        svg.setAttribute("viewBox", sourceRoot.getAttribute("viewBox") || "0 0 1024 1024");
+        svg.setAttribute("role", "img");
+        svg.setAttribute("aria-label", `Numbered stroke order diagram for ${character}`);
+        svg.style.visibility = "hidden";
+        button.insertBefore(svg, button.querySelector(".stroke-caption"));
+        sourcePaths.forEach((sourcePath, index) => {
+          const path = document.createElementNS(namespace, "path");
+          path.setAttribute("d", sourcePath.getAttribute("d"));
+          path.setAttribute("fill", "currentColor");
+          svg.append(path);
+          const bounds = path.getBBox();
+          const x = bounds.x + bounds.width / 2;
+          const y = bounds.y + bounds.height / 2;
+          const radius = Math.min(34, Math.max(15, Math.min(bounds.width, bounds.height) * 0.3));
+          const marker = document.createElementNS(namespace, "circle");
+          marker.setAttribute("cx", String(x));
+          marker.setAttribute("cy", String(y));
+          marker.setAttribute("r", String(radius));
+          marker.setAttribute("fill", "var(--accent)");
+          svg.append(marker);
+          const number = document.createElementNS(namespace, "text");
+          number.setAttribute("x", String(x));
+          number.setAttribute("y", String(y));
+          number.setAttribute("fill", "var(--page)");
+          number.setAttribute("font-size", String(radius * 1.35));
+          number.setAttribute("font-weight", "700");
+          number.setAttribute("text-anchor", "middle");
+          number.setAttribute("dominant-baseline", "central");
+          number.textContent = String(index + 1);
+          svg.append(number);
+        });
+        svg.style.visibility = "";
+        return svg;
+      }
+
+      async function animateStrokeOrder(button, character) {
+        const caption = button.querySelector(".stroke-caption");
+        const originalGlyph = button.querySelector(".hero-kanji-character");
+        button.querySelector(".hero-strokes")?.remove();
+        originalGlyph.hidden = false;
+        button.disabled = true;
+        caption.textContent = "Loading stroke order…";
+        try {
+          const strokeData = await getStrokeData(character);
+          if (strokeData.source === "animcjk") {
+            buildNumberedDiagram(strokeData.svgText, character, button);
+            originalGlyph.hidden = true;
+            caption.textContent = "Numbered stroke order · AnimCJK";
+            return;
+          }
+
+          const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+          svg.setAttribute("class", "hero-strokes");
+          svg.setAttribute("viewBox", strokeData.viewBox);
+          svg.setAttribute("role", "img");
+          svg.setAttribute("aria-label", `Stroke order for ${character}`);
+          strokeData.paths.forEach(({ d }) => {
+            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            path.setAttribute("d", d);
+            path.setAttribute("fill", "none");
+            path.setAttribute("stroke", "currentColor");
+            path.setAttribute("stroke-width", "3");
+            path.setAttribute("stroke-linecap", "round");
+            path.setAttribute("stroke-linejoin", "round");
+            svg.append(path);
+          });
+          originalGlyph.hidden = true;
+          button.insertBefore(svg, caption);
+
+          if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+            caption.textContent = `${strokeData.paths.length} strokes · reduced motion`;
+            return;
+          }
+          const paths = [...svg.querySelectorAll("path")];
+          for (let index = 0; index < paths.length; index += 1) {
+            if (!button.isConnected) return;
+            const path = paths[index];
+            const length = path.getTotalLength();
+            path.style.strokeDasharray = String(length);
+            path.style.strokeDashoffset = String(length);
+            caption.textContent = `Stroke ${index + 1} of ${paths.length}`;
+            const animation = path.animate(
+              [{ strokeDashoffset: length }, { strokeDashoffset: 0 }],
+              { duration: 420, fill: "forwards", easing: "ease-in-out" }
+            );
+            await animation.finished;
+            await new Promise((resolve) => window.setTimeout(resolve, 90));
+          }
+          if (button.isConnected) caption.textContent = `${paths.length} strokes · click to replay`;
+        } catch (error) {
+          if (button.isConnected) {
+            button.querySelector(".hero-strokes")?.remove();
+            originalGlyph.hidden = false;
+            caption.textContent = "Stroke order unavailable";
+            setNotice(`Could not load stroke order for ${character}. Check your connection and try again. ${error.message}`, true);
+          }
+        } finally {
+          if (button.isConnected) button.disabled = false;
+        }
       }
 
       async function getKanji(character) {
